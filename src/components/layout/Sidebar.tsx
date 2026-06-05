@@ -11,6 +11,7 @@ import {
   TableProperties,
   LogOut,
 } from "lucide-react";
+import { TickrLogo } from "@/components/TickrLogo";
 
 type NavItem = {
   href: string;
@@ -37,22 +38,9 @@ const ROLE_LABELS: Record<string, string> = {
 function BrandMark() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{
-        width: 28,
-        height: 28,
-        background: "var(--accent)",
-        borderRadius: "var(--r-sm)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-      }}>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M3 8.5L6.5 12L13 4.5" stroke="var(--accent-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
+      <TickrLogo size={28} />
       <div>
-        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>LendFlow</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>Tickr AI</div>
         <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
       </div>
     </div>

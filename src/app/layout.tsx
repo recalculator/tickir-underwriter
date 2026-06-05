@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LendFlow — Commercial Lending Platform",
-  description: "Commercial lending workflow management for regional banks",
+  title: "Tickr AI — Commercial Lending Platform",
+  description: "AI-powered commercial lending platform",
 };
 
 export default function RootLayout({

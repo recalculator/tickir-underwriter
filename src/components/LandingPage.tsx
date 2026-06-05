@@ -3,26 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { TickrLogo } from "@/components/TickrLogo";
 
 function BrandMark() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 40 }}>
-      <div style={{
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        background: "var(--accent)",
-        display: "grid",
-        placeItems: "center",
-        boxShadow: "0 0 0 1px color-mix(in oklch, var(--accent) 60%, transparent), 0 4px 20px -4px var(--accent-glow)",
-        flexShrink: 0,
-      }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 13l5 5L20 5" />
-        </svg>
-      </div>
+      <TickrLogo size={48} />
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.03em", lineHeight: 1 }}>LendFlow</div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.03em", lineHeight: 1 }}>Tickr AI</div>
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 5, textTransform: "uppercase" }}>Credit OS</div>
       </div>
     </div>

@@ -4,27 +4,16 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock } from "lucide-react";
+import { TickrLogo } from "@/components/TickrLogo";
 
 type UserType = "banker" | "borrower";
 
 function BrandMark() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginBottom: 28 }}>
-      <div style={{
-        width: 40,
-        height: 40,
-        background: "var(--accent)",
-        borderRadius: "var(--r-md)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-          <path d="M4 11.5L9 16.5L18 6" stroke="var(--accent-ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
+      <TickrLogo size={40} />
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>LendFlow</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>Tickr AI</div>
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
       </div>
     </div>
@@ -133,7 +122,7 @@ export default function SignupPage() {
                 I&apos;m a Banker / Bank Staff
               </p>
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--ink-4)" }}>
-                Create your bank&apos;s LendFlow account
+                Create your bank&apos;s Tickr AI account
               </p>
             </button>
 
