@@ -18,31 +18,53 @@ export default async function TemplatesPage(_: PageProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Spread Templates</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Spread Templates</h1>
         <Link
           href="/admin/templates/new"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          style={{
+            borderRadius: "var(--r-md)",
+            background: "var(--accent)",
+            color: "var(--accent-ink)",
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
         >
           New Template
         </Link>
       </div>
 
       {templates.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white py-20 text-center">
-          <p className="text-base font-medium text-gray-900">No templates yet</p>
-          <p className="mt-1 text-sm text-gray-500">Create your first spread template.</p>
+        <div style={{
+          borderRadius: "var(--r-lg)",
+          border: "1px dashed var(--line)",
+          background: "var(--panel)",
+          padding: "80px 24px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontSize: 15, fontWeight: 500, color: "var(--ink)", margin: 0 }}>No templates yet</p>
+          <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>Create your first spread template.</p>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {templates.map((t) => (
             <li
               key={t.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-5 py-4 shadow-sm"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderRadius: "var(--r-lg)",
+                border: "1px solid var(--line)",
+                background: "var(--panel)",
+                padding: "16px 20px",
+              }}
             >
-              <span className="font-medium text-gray-900">{t.name}</span>
+              <span style={{ fontWeight: 500, color: "var(--ink)", fontSize: 14 }}>{t.name}</span>
               <Link
                 href={`/admin/templates/${t.id}`}
-                className="text-sm text-blue-600 hover:underline"
+                style={{ fontSize: 13, color: "var(--accent)", textDecoration: "none" }}
               >
                 Edit Mapping
               </Link>

@@ -9,7 +9,7 @@ export default async function NewTemplatePage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">New Template</h1>
+      <h1 style={{ marginBottom: 24, fontSize: 22, fontWeight: 700, color: "var(--ink)" }}>New Template</h1>
       <NewTemplateForm />
     </div>
   );

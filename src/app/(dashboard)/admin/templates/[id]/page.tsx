@@ -20,8 +20,8 @@ export default async function TemplateMappingPage({ params }: PageProps) {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{template.name}</h1>
-        <p className="mt-1 text-sm text-gray-500">Edit cell mapping JSON</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</h1>
+        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>Edit cell mapping JSON</p>
       </div>
       <TemplateMappingEditor
         templateId={template.id}

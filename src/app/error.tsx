@@ -14,25 +14,42 @@ export default function ErrorPage({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center max-w-md px-4">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-deep)" }}>
+      <div style={{ textAlign: "center", maxWidth: 400, padding: "0 16px" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
           Something went wrong
         </h1>
-        <p className="text-gray-500 mb-6">
-          An unexpected error occurred. Please try again or return to the
-          dashboard.
+        <p style={{ color: "var(--ink-3)", marginBottom: 24, fontSize: 14 }}>
+          An unexpected error occurred. Please try again or return to the dashboard.
         </p>
         <div className="flex gap-3 justify-center">
           <button
             onClick={reset}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            style={{
+              padding: "8px 16px",
+              background: "var(--accent)",
+              color: "var(--accent-ink)",
+              borderRadius: "var(--r-md)",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
           >
             Try again
           </button>
           <Link
             href="/dashboard"
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+            style={{
+              padding: "8px 16px",
+              border: "1px solid var(--line-2)",
+              background: "var(--panel-2)",
+              color: "var(--ink-2)",
+              borderRadius: "var(--r-md)",
+              fontSize: 13,
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
           >
             Back to dashboard
           </Link>

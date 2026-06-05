@@ -58,22 +58,33 @@ export default async function SpreadPage({ params }: PageProps) {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{deal.borrowerName} — Spread</h1>
-          <p className="text-sm text-gray-500">{deal.internalName}</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+            {deal.borrowerName} — Spread
+          </h1>
+          <p style={{ marginTop: 2, fontSize: 13, color: "var(--ink-3)" }}>{deal.internalName}</p>
         </div>
         <div className="flex items-center gap-3">
           {spread && !locked && <LockSpreadButton dealId={id} />}
           {spread && (
             <a
               href={`/api/deals/${id}/spread/export`}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              style={{
+                borderRadius: "var(--r-md)",
+                border: "1px solid var(--line-2)",
+                background: "var(--panel-2)",
+                color: "var(--ink-2)",
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Export to Excel
             </a>
           )}
           <Link
             href={`/deals/${id}`}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            style={{ fontSize: 13, color: "var(--accent)", textDecoration: "none" }}
           >
             ← Deal
           </Link>
@@ -82,19 +93,25 @@ export default async function SpreadPage({ params }: PageProps) {
 
       {/* No spread yet — show template selector */}
       {!spread && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white py-16 text-center">
-          <p className="text-base font-bold text-gray-900">No spread yet</p>
+        <div style={{
+          borderRadius: "var(--r-lg)",
+          border: "1px dashed var(--line)",
+          background: "var(--panel)",
+          padding: "64px 24px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>No spread yet</p>
           {templates.length === 0 ? (
-            <p className="mt-2 text-sm text-gray-500">
+            <p style={{ marginTop: 8, fontSize: 13, color: "var(--ink-3)" }}>
               Create a spreading template in{" "}
-              <Link href="/admin/templates" className="text-blue-600 hover:underline">
+              <Link href="/admin/templates" style={{ color: "var(--accent)", textDecoration: "none" }}>
                 Admin → Templates
               </Link>{" "}
               first.
             </p>
           ) : (
             <div className="mt-6 flex flex-col items-center gap-4">
-              <p className="text-sm text-gray-500">Select a template and run AI spreading.</p>
+              <p style={{ fontSize: 13, color: "var(--ink-3)" }}>Select a template and run AI spreading.</p>
               <RunSpreadingForm dealId={id} templates={templates} />
             </div>
           )}
@@ -103,7 +120,17 @@ export default async function SpreadPage({ params }: PageProps) {
 
       {/* Spread exists with cells but not locked */}
       {spread && hasCells && !locked && (
-        <div className="rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-700 flex items-center justify-between">
+        <div style={{
+          borderRadius: "var(--r-md)",
+          background: "color-mix(in srgb, var(--s-spr) 10%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--s-spr) 30%, transparent)",
+          padding: "12px 16px",
+          fontSize: 13,
+          color: "var(--s-spr)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}>
           <span>Spreading complete — review each cell and correct any errors, then lock the spread.</span>
           <LockSpreadButton dealId={id} />
         </div>
@@ -111,9 +138,16 @@ export default async function SpreadPage({ params }: PageProps) {
 
       {/* Spread locked */}
       {spread && locked && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div style={{
+          borderRadius: "var(--r-md)",
+          background: "color-mix(in srgb, var(--s-clo) 10%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--s-clo) 30%, transparent)",
+          padding: "12px 16px",
+          fontSize: 13,
+          color: "var(--s-clo)",
+        }}>
           Locked by{" "}
-          <span className="font-semibold">
+          <span style={{ fontWeight: 600 }}>
             {(spread as { lockedBy?: { name: string } | null }).lockedBy?.name ?? "Unknown"}
           </span>{" "}
           on{" "}
@@ -157,18 +191,35 @@ function RunSpreadingForm({
     >
       <select
         name="templateId"
-        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
         defaultValue={templates[0]?.id}
+        style={{
+          borderRadius: "var(--r-md)",
+          border: "1px solid var(--line-2)",
+          background: "var(--panel-2)",
+          color: "var(--ink)",
+          padding: "8px 12px",
+          fontSize: 13,
+          outline: "none",
+        }}
       >
         {templates.map((t) => (
-          <option key={t.id} value={t.id}>
+          <option key={t.id} value={t.id} style={{ background: "var(--bg-deep)" }}>
             {t.name}
           </option>
         ))}
       </select>
       <button
         type="submit"
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        style={{
+          borderRadius: "var(--r-md)",
+          background: "var(--accent)",
+          color: "var(--accent-ink)",
+          padding: "8px 16px",
+          fontSize: 13,
+          fontWeight: 700,
+          border: "none",
+          cursor: "pointer",
+        }}
       >
         Run AI Spreading
       </button>
@@ -215,7 +266,16 @@ function LockSpreadButton({ dealId }: { dealId: string }) {
     >
       <button
         type="submit"
-        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+        style={{
+          borderRadius: "var(--r-md)",
+          border: "1px solid var(--line-2)",
+          background: "var(--panel-2)",
+          color: "var(--ink-2)",
+          padding: "8px 16px",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
       >
         Lock Spread
       </button>

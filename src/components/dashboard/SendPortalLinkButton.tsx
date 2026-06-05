@@ -21,7 +21,16 @@ export function SendPortalLinkButton({ dealId }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      style={{
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--line-2)",
+        background: "var(--panel-2)",
+        color: "var(--ink-2)",
+        padding: "6px 12px",
+        fontSize: 13,
+        fontWeight: 500,
+        cursor: "pointer",
+      }}
     >
       Send Portal Link
     </button>

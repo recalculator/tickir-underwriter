@@ -10,10 +10,17 @@ type Props = {
   locked: boolean;
 };
 
-const tierBg: Record<string, string> = {
-  GREEN: "bg-green-50 hover:bg-green-100",
-  YELLOW: "bg-yellow-50 hover:bg-yellow-100",
-  RED: "bg-red-50 border border-red-300 hover:bg-red-100",
+const tierRowStyle: Record<string, React.CSSProperties> = {
+  GREEN: {
+    background: "color-mix(in srgb, var(--s-clo) 8%, transparent)",
+  },
+  YELLOW: {
+    background: "color-mix(in srgb, var(--s-spr) 8%, transparent)",
+  },
+  RED: {
+    background: "color-mix(in srgb, var(--s-dec) 8%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--s-dec) 25%, transparent)",
+  },
 };
 
 export function SpreadGrid({ cells, dealId, locked }: Props) {
@@ -36,40 +43,58 @@ export function SpreadGrid({ cells, dealId, locked }: Props) {
   return (
     <div className="flex gap-6">
       <div className="flex-1 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Cell
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Value
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Confidence
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Source
-              </th>
+        <table
+          className="min-w-full text-sm"
+          style={{
+            background: "var(--bg-deep)",
+            borderCollapse: "collapse",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "var(--panel-2)" }}>
+              {["Cell", "Value", "Confidence", "Source"].map((col) => (
+                <th
+                  key={col}
+                  style={{
+                    padding: "10px 16px",
+                    textAlign: "left",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    color: "var(--ink-3)",
+                    borderBottom: "1px solid var(--line)",
+                  }}
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {sorted.map((cell) => (
               <tr
                 key={cell.cellRef}
                 onClick={() => setSelectedRef(cell.cellRef)}
-                className={`cursor-pointer ${tierBg[cell.confidenceTier] ?? ""} ${selectedRef === cell.cellRef ? "ring-2 ring-inset ring-blue-400" : ""}`}
+                style={{
+                  cursor: "pointer",
+                  borderBottom: "1px solid var(--line)",
+                  ...(tierRowStyle[cell.confidenceTier] ?? {}),
+                  ...(selectedRef === cell.cellRef
+                    ? { outline: "2px solid var(--accent)", outlineOffset: "-2px" }
+                    : {}),
+                }}
               >
-                <td className="px-4 py-2 font-mono text-xs font-semibold text-gray-800">
+                <td style={{ padding: "8px 16px", fontFamily: "monospace", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
                   {cell.cellRef}
                 </td>
-                <td className="px-4 py-2 text-gray-700">
+                <td style={{ padding: "8px 16px", color: "var(--ink-2)" }}>
                   {cell.correctedValue ?? cell.value ?? "—"}
                 </td>
-                <td className="px-4 py-2 text-gray-500">
+                <td style={{ padding: "8px 16px", color: "var(--ink-3)" }}>
                   {cell.confidence ? `${Math.round(Number(cell.confidence) * 100)}%` : "—"}
                 </td>
-                <td className="px-4 py-2 text-gray-500 truncate max-w-[160px]">
+                <td style={{ padding: "8px 16px", color: "var(--ink-3)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {cell.sourceDoc ?? "—"}
                 </td>
               </tr>

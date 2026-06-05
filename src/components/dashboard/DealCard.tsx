@@ -35,28 +35,36 @@ export function DealCard({ deal }: Props) {
   return (
     <Link
       href={`/deals/${deal.id}`}
-      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md"
+      style={{
+        display: "block",
+        borderRadius: "var(--r-lg)",
+        border: "1px solid var(--line)",
+        background: "var(--panel)",
+        padding: 16,
+        textDecoration: "none",
+        transition: "border-color 0.15s",
+      }}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-gray-900">
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--ink)" }} className="truncate">
             {deal.borrowerName}
           </p>
-          <p className="mt-0.5 truncate text-xs text-gray-500">
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-3)" }} className="truncate">
             {deal.internalName}
           </p>
         </div>
         <StagesBadge stage={deal.stage as Parameters<typeof StagesBadge>[0]["stage"]} />
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-3 flex items-center justify-between" style={{ fontSize: 12, color: "var(--ink-3)" }}>
         <span>{loanLabel}</span>
-        <span className="font-semibold text-gray-900">
+        <span style={{ fontWeight: 600, color: "var(--ink)" }}>
           {formatCurrency(deal.loanAmount)}
         </span>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-2 flex items-center justify-between" style={{ fontSize: 12, color: "var(--ink-4)" }}>
         <span>
           Docs: {deal.documentsUploaded}/{deal.documentsRequired}
         </span>

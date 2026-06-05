@@ -12,6 +12,26 @@ const LOAN_TYPE_DESCRIPTIONS: Record<string, string> = {
   CI_LINE_OF_CREDIT: "Revolving credit facility for working capital needs.",
 };
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  borderRadius: "var(--r-md)",
+  border: "1px solid var(--line-2)",
+  background: "var(--panel-2)",
+  color: "var(--ink)",
+  padding: "8px 12px",
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: 4,
+  fontSize: 13,
+  fontWeight: 500,
+  color: "var(--ink-2)",
+};
+
 export default function NewDealPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -60,94 +80,126 @@ export default function NewDealPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
-  const labelClass = "mb-1 block text-sm font-medium text-gray-700";
-
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">New Deal</h1>
-        <p className="mt-1 text-sm text-gray-500">Start a new commercial lending deal.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: 0 }}>New Deal</h1>
+        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>Start a new commercial lending deal.</p>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div style={{
+          marginBottom: 16,
+          borderRadius: "var(--r-md)",
+          padding: "10px 14px",
+          fontSize: 13,
+          color: "var(--s-dec)",
+          background: "color-mix(in srgb, var(--s-dec) 10%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--s-dec) 30%, transparent)",
+        }}>
+          {error}
+        </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <div style={{
+            borderRadius: "var(--r-lg)",
+            border: "1px solid var(--line)",
+            background: "var(--panel)",
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}>
+            <h2 style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-4)", margin: 0 }}>
               Borrower Info
             </h2>
 
             <div>
-              <label className={labelClass}>Borrower Name</label>
+              <label style={labelStyle}>Borrower Name</label>
               <input
                 required
                 type="text"
                 value={form.borrowerName}
                 onChange={(e) => updateField("borrowerName", e.target.value)}
-                className={inputClass}
+                style={inputStyle}
                 placeholder="Acme Corp"
               />
             </div>
 
             <div>
-              <label className={labelClass}>Borrower Email</label>
+              <label style={labelStyle}>Borrower Email</label>
               <input
                 required
                 type="email"
                 value={form.borrowerEmail}
                 onChange={(e) => updateField("borrowerEmail", e.target.value)}
-                className={inputClass}
+                style={inputStyle}
                 placeholder="owner@acme.com"
               />
             </div>
 
             <div>
-              <label className={labelClass}>Borrower Phone</label>
+              <label style={labelStyle}>Borrower Phone</label>
               <input
                 type="tel"
                 value={form.borrowerPhone}
                 onChange={(e) => updateField("borrowerPhone", e.target.value)}
-                className={inputClass}
+                style={inputStyle}
                 placeholder="(555) 555-5555"
               />
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <div style={{
+            borderRadius: "var(--r-lg)",
+            border: "1px solid var(--line)",
+            background: "var(--panel)",
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}>
+            <h2 style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-4)", margin: 0 }}>
               Deal Info
             </h2>
 
             <div>
-              <label className={labelClass}>Loan Type</label>
+              <label style={labelStyle}>Loan Type</label>
               <select
                 required
                 value={form.loanType}
                 onChange={(e) => updateField("loanType", e.target.value)}
-                className={inputClass}
+                style={{ ...inputStyle, background: "var(--panel-2)" }}
               >
                 {LOAN_TYPES.map((type) => (
-                  <option key={type} value={type}>
+                  <option key={type} value={type} style={{ background: "var(--bg-deep)" }}>
                     {LOAN_TYPE_LABELS[type]}
                   </option>
                 ))}
               </select>
               {form.loanType && (
-                <p className="mt-1.5 text-xs text-gray-500">
+                <p style={{ marginTop: 6, fontSize: 12, color: "var(--ink-4)" }}>
                   {LOAN_TYPE_DESCRIPTIONS[form.loanType] ?? ""}
                 </p>
               )}
             </div>
 
             <div>
-              <label className={labelClass}>Loan Amount</label>
-              <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-gray-400">
+              <label style={labelStyle}>Loan Amount</label>
+              <div style={{ position: "relative" }}>
+                <span style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: 13,
+                  color: "var(--ink-4)",
+                  pointerEvents: "none",
+                }}>
                   $
                 </span>
                 <input
@@ -157,20 +209,20 @@ export default function NewDealPage() {
                   step="1000"
                   value={form.loanAmount}
                   onChange={(e) => updateField("loanAmount", e.target.value)}
-                  className="w-full rounded-md border border-gray-300 py-2 pl-7 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  style={{ ...inputStyle, paddingLeft: 24 }}
                   placeholder="1,000,000"
                 />
               </div>
             </div>
 
             <div>
-              <label className={labelClass}>Internal Deal Name</label>
+              <label style={labelStyle}>Internal Deal Name</label>
               <input
                 required
                 type="text"
                 value={form.internalName}
                 onChange={(e) => updateField("internalName", e.target.value)}
-                className={inputClass}
+                style={inputStyle}
                 placeholder="Acme-CRE-2024-001"
               />
             </div>
@@ -180,14 +232,33 @@ export default function NewDealPage() {
         <div className="mt-6 flex items-center justify-end gap-3">
           <Link
             href="/dashboard"
-            className="rounded-md border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            style={{
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line-2)",
+              background: "var(--panel-2)",
+              color: "var(--ink-2)",
+              padding: "8px 20px",
+              fontSize: 13,
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            style={{
+              borderRadius: "var(--r-md)",
+              background: "var(--accent)",
+              color: "var(--accent-ink)",
+              padding: "8px 20px",
+              fontSize: 13,
+              fontWeight: 700,
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+            }}
           >
             {loading ? "Creating…" : "Create Deal"}
           </button>

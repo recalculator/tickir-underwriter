@@ -73,12 +73,29 @@ export function TemplateMappingEditor({ templateId, initialCellsJson }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <label className="mb-2 block text-sm font-semibold text-gray-700">
+      <div style={{
+        borderRadius: "var(--r-lg)",
+        border: "1px solid var(--line)",
+        background: "var(--panel)",
+        padding: 24,
+      }}>
+        <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 600, color: "var(--ink-2)" }}>
           cellsJson
         </label>
         <textarea
-          className="w-full rounded-md border border-gray-300 p-3 font-mono text-xs focus:border-blue-500 focus:outline-none"
+          style={{
+            width: "100%",
+            borderRadius: "var(--r-md)",
+            border: "1px solid var(--line-2)",
+            background: "var(--panel-2)",
+            color: "var(--ink)",
+            padding: 12,
+            fontFamily: "monospace",
+            fontSize: 12,
+            outline: "none",
+            boxSizing: "border-box",
+            resize: "vertical",
+          }}
           rows={20}
           value={json}
           onChange={(e) => { setJson(e.target.value); setStatus("idle"); }}
@@ -88,41 +105,65 @@ export function TemplateMappingEditor({ templateId, initialCellsJson }: Props) {
           <button
             onClick={handleSave}
             disabled={status === "saving"}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            style={{
+              borderRadius: "var(--r-md)",
+              background: "var(--accent)",
+              color: "var(--accent-ink)",
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              border: "none",
+              cursor: status === "saving" ? "not-allowed" : "pointer",
+              opacity: status === "saving" ? 0.6 : 1,
+            }}
           >
             {status === "saving" ? "Saving…" : "Save"}
           </button>
           {status === "saved" && (
-            <span className="text-sm text-green-600">Saved</span>
+            <span style={{ fontSize: 13, color: "var(--s-clo)" }}>Saved</span>
           )}
           {status === "error" && (
-            <span className="text-sm text-red-600">{errorMsg}</span>
+            <span style={{ fontSize: 13, color: "var(--s-dec)" }}>{errorMsg}</span>
           )}
         </div>
       </div>
 
       {cells !== null && cells.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
+        <div style={{
+          borderRadius: "var(--r-lg)",
+          border: "1px solid var(--line)",
+          background: "var(--panel)",
+          overflow: "hidden",
+        }}>
+          <table className="min-w-full text-sm" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--panel-2)" }}>
                 {["cell_ref", "label", "source_doc_type", "source_line_item"].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500"
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.07em",
+                      color: "var(--ink-3)",
+                      borderBottom: "1px solid var(--line)",
+                    }}
                   >
                     {col}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {cells.map((row) => (
-                <tr key={row.cell_ref} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-mono text-xs text-gray-700">{row.cell_ref}</td>
-                  <td className="px-4 py-2 text-gray-700">{row.label}</td>
-                  <td className="px-4 py-2 text-gray-700">{row.source_doc_type}</td>
-                  <td className="px-4 py-2 text-gray-700">{row.source_line_item}</td>
+                <tr key={row.cell_ref} style={{ borderBottom: "1px solid var(--line)" }}>
+                  <td style={{ padding: "8px 16px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-2)" }}>{row.cell_ref}</td>
+                  <td style={{ padding: "8px 16px", color: "var(--ink-2)", fontSize: 13 }}>{row.label}</td>
+                  <td style={{ padding: "8px 16px", color: "var(--ink-2)", fontSize: 13 }}>{row.source_doc_type}</td>
+                  <td style={{ padding: "8px 16px", color: "var(--ink-2)", fontSize: 13 }}>{row.source_line_item}</td>
                 </tr>
               ))}
             </tbody>

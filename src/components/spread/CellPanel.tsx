@@ -24,12 +24,28 @@ type Props = {
   onSave: (cellRef: string, value: string) => void;
 };
 
+const tierBadgeStyle: Record<string, React.CSSProperties> = {
+  GREEN: {
+    color: "var(--s-clo)",
+    background: "color-mix(in srgb, var(--s-clo) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--s-clo) 30%, transparent)",
+  },
+  YELLOW: {
+    color: "var(--s-spr)",
+    background: "color-mix(in srgb, var(--s-spr) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--s-spr) 30%, transparent)",
+  },
+  RED: {
+    color: "var(--s-dec)",
+    background: "color-mix(in srgb, var(--s-dec) 12%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--s-dec) 30%, transparent)",
+  },
+};
+
 export function CellPanel({ cell, dealId, locked, onSave }: Props) {
   const [editValue, setEditValue] = useState(cell.correctedValue ?? cell.value ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const displayValue = cell.correctedValue ?? cell.value;
 
   async function handleSave() {
     setStatus("saving");
@@ -52,59 +68,89 @@ export function CellPanel({ cell, dealId, locked, onSave }: Props) {
     }
   }
 
-  const tierColors: Record<string, string> = {
-    GREEN: "text-green-700 bg-green-50 border-green-200",
-    YELLOW: "text-yellow-700 bg-yellow-50 border-yellow-200",
-    RED: "text-red-700 bg-red-50 border-red-200",
-  };
-
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+    <div style={{
+      borderRadius: "var(--r-lg)",
+      border: "1px solid var(--line)",
+      background: "var(--panel)",
+      padding: 24,
+      display: "flex",
+      flexDirection: "column",
+      gap: 16,
+    }}>
       <div className="flex items-center gap-3">
-        <span className="font-mono text-sm font-semibold text-gray-800">{cell.cellRef}</span>
-        <span
-          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${tierColors[cell.confidenceTier] ?? ""}`}
-        >
+        <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{cell.cellRef}</span>
+        <span style={{
+          borderRadius: 999,
+          padding: "2px 8px",
+          fontSize: 11,
+          fontWeight: 500,
+          ...(tierBadgeStyle[cell.confidenceTier] ?? {}),
+        }}>
           {cell.confidenceTier}
         </span>
       </div>
 
-      <div className="text-sm space-y-1">
+      <div style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
         <div>
-          <span className="text-gray-500">AI value: </span>
-          <span className="font-medium text-gray-900">{cell.value ?? "—"}</span>
+          <span style={{ color: "var(--ink-3)" }}>AI value: </span>
+          <span style={{ fontWeight: 600, color: "var(--ink)" }}>{cell.value ?? "—"}</span>
         </div>
         {cell.correctedValue && (
           <div>
-            <span className="text-gray-500">Corrected: </span>
-            <span className="font-medium text-blue-700">{cell.correctedValue}</span>
+            <span style={{ color: "var(--ink-3)" }}>Corrected: </span>
+            <span style={{ fontWeight: 600, color: "var(--accent)" }}>{cell.correctedValue}</span>
           </div>
         )}
         {cell.sourceDoc && (
           <div>
-            <span className="text-gray-500">Source: </span>
-            <span className="text-gray-700">{cell.sourceDoc}</span>
-            {cell.sourcePage && <span className="text-gray-500">, p.{cell.sourcePage}</span>}
+            <span style={{ color: "var(--ink-3)" }}>Source: </span>
+            <span style={{ color: "var(--ink-2)" }}>{cell.sourceDoc}</span>
+            {cell.sourcePage && <span style={{ color: "var(--ink-4)" }}>, p.{cell.sourcePage}</span>}
           </div>
         )}
         {cell.confidenceTier === "YELLOW" && cell.formulaExplanation && (
-          <div className="mt-2 rounded-md bg-yellow-50 p-3 text-xs text-yellow-800">
+          <div style={{
+            marginTop: 8,
+            borderRadius: "var(--r-md)",
+            background: "color-mix(in srgb, var(--s-spr) 10%, transparent)",
+            padding: "10px 12px",
+            fontSize: 12,
+            color: "var(--s-spr)",
+          }}>
             <strong>Explanation:</strong> {cell.formulaExplanation}
           </div>
         )}
         {cell.confidenceTier === "RED" && (
-          <div className="mt-2 rounded-md bg-red-50 p-3 text-xs text-red-800">
+          <div style={{
+            marginTop: 8,
+            borderRadius: "var(--r-md)",
+            background: "color-mix(in srgb, var(--s-dec) 10%, transparent)",
+            padding: "10px 12px",
+            fontSize: 12,
+            color: "var(--s-dec)",
+          }}>
             <strong>Flag:</strong> {cell.flagReason ?? "Low confidence — fill manually"}
           </div>
         )}
       </div>
 
       {!locked && (
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-gray-600">Override value</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Override value</label>
           <input
             type="text"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            style={{
+              width: "100%",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line-2)",
+              background: "var(--panel-2)",
+              color: "var(--ink)",
+              padding: "8px 12px",
+              fontSize: 13,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
             value={editValue}
             onChange={(e) => { setEditValue(e.target.value); setStatus("idle"); }}
           />
@@ -112,12 +158,22 @@ export function CellPanel({ cell, dealId, locked, onSave }: Props) {
             <button
               onClick={handleSave}
               disabled={status === "saving"}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              style={{
+                borderRadius: "var(--r-md)",
+                background: "var(--accent)",
+                color: "var(--accent-ink)",
+                padding: "6px 14px",
+                fontSize: 13,
+                fontWeight: 700,
+                border: "none",
+                cursor: status === "saving" ? "not-allowed" : "pointer",
+                opacity: status === "saving" ? 0.6 : 1,
+              }}
             >
               {status === "saving" ? "Saving…" : "Save"}
             </button>
-            {status === "saved" && <span className="text-sm text-green-600">Saved</span>}
-            {status === "error" && <span className="text-sm text-red-600">{errorMsg}</span>}
+            {status === "saved" && <span style={{ fontSize: 13, color: "var(--s-clo)" }}>Saved</span>}
+            {status === "error" && <span style={{ fontSize: 13, color: "var(--s-dec)" }}>{errorMsg}</span>}
           </div>
         </div>
       )}
