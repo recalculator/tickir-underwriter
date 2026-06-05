@@ -90,39 +90,21 @@ export default async function DashboardPage() {
   const isNewBank = deals.length > 0 && deals.length < 3;
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Deal Pipeline</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {deals.length} deal{deals.length !== 1 ? "s" : ""} total
-          </p>
-        </div>
-        <Link
-          href="/deals/new"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          New Deal
-        </Link>
-      </div>
-
+    <div style={{ padding: "24px 28px", background: "var(--bg-deep)", minHeight: "100vh" }}>
       {isNewBank && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          <span className="font-semibold">Getting started:</span> Create a few deals, set up a spreading template, and send your first borrower portal link to collect documents automatically.
+        <div style={{
+          marginBottom: 20,
+          padding: "12px 16px",
+          borderRadius: "var(--r-md)",
+          background: "var(--accent-glow)",
+          border: "1px solid var(--accent-deep)",
+          fontSize: 13,
+          color: "var(--ink-2)",
+        }}>
+          <span style={{ fontWeight: 600, color: "var(--accent)" }}>Getting started: </span>
+          Create a few deals, set up a spreading template, and send your first borrower portal link to collect documents automatically.
         </div>
       )}
-
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {summaryStats.map(({ label, value }) => (
-          <div
-            key={label}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-center shadow-sm"
-          >
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{label}</p>
-          </div>
-        ))}
-      </div>
 
       {deals.length === 0 ? (
         <OnboardingChecklist templateCount={templateCount} />
@@ -143,16 +125,29 @@ function CheckItem({
   action?: React.ReactNode;
 }) {
   return (
-    <li className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-            done ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"
-          }`}
-        >
+    <li style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{
+          flexShrink: 0,
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 11,
+          fontWeight: 700,
+          background: done ? "var(--accent-glow)" : "var(--panel-2)",
+          color: done ? "var(--accent)" : "var(--ink-4)",
+          border: done ? "1px solid var(--accent-deep)" : "1px solid var(--line-2)",
+        }}>
           {done ? "✓" : "○"}
         </span>
-        <span className={`text-sm ${done ? "text-gray-400 line-through" : "text-gray-800"}`}>
+        <span style={{
+          fontSize: 13,
+          color: done ? "var(--ink-4)" : "var(--ink)",
+          textDecoration: done ? "line-through" : "none",
+        }}>
           {label}
         </span>
       </div>
@@ -163,10 +158,15 @@ function CheckItem({
 
 function OnboardingChecklist({ templateCount }: { templateCount: number }) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8">
-      <h2 className="mb-1 text-base font-semibold text-gray-900">Welcome to LendFlow</h2>
-      <p className="mb-6 text-sm text-gray-500">Complete these steps to get started.</p>
-      <ul className="space-y-4">
+    <div style={{
+      borderRadius: "var(--r-lg)",
+      border: "1px dashed var(--line-2)",
+      background: "var(--panel)",
+      padding: 32,
+    }}>
+      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Welcome to LendFlow</h2>
+      <p style={{ margin: "4px 0 24px", fontSize: 13, color: "var(--ink-4)" }}>Complete these steps to get started.</p>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
         <CheckItem done label="Account created" />
         <CheckItem
           done={false}
@@ -174,7 +174,15 @@ function OnboardingChecklist({ templateCount }: { templateCount: number }) {
           action={
             <Link
               href="/deals/new"
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              style={{
+                padding: "6px 14px",
+                borderRadius: "var(--r-md)",
+                background: "var(--accent)",
+                color: "var(--accent-ink)",
+                fontSize: 12,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
             >
               Create Deal
             </Link>
@@ -186,7 +194,16 @@ function OnboardingChecklist({ templateCount }: { templateCount: number }) {
           action={
             <Link
               href="/admin/templates"
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              style={{
+                padding: "6px 14px",
+                borderRadius: "var(--r-md)",
+                border: "1px solid var(--line-2)",
+                background: "transparent",
+                color: "var(--ink-3)",
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Go to Templates
             </Link>
@@ -196,7 +213,15 @@ function OnboardingChecklist({ templateCount }: { templateCount: number }) {
           done={false}
           label="Send a borrower portal link (create a deal first)"
           action={
-            <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-300 cursor-not-allowed">
+            <span style={{
+              padding: "6px 14px",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line)",
+              color: "var(--ink-4)",
+              fontSize: 12,
+              cursor: "not-allowed",
+              opacity: 0.5,
+            }}>
               Need a deal first
             </span>
           }

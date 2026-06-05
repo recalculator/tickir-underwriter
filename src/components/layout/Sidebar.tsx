@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
-  PlusCircle,
+  Plus,
+  BarChart2,
+  Link as LinkIcon,
   TableProperties,
+  Settings,
   LogOut,
-  Building2,
 } from "lucide-react";
 
 type NavItem = {
@@ -16,17 +18,16 @@ type NavItem = {
   label: string;
   icon: React.ReactNode;
   adminOnly?: boolean;
+  section?: "main" | "admin";
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Pipeline", icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: "/deals/new", label: "New Deal", icon: <PlusCircle className="h-4 w-4" /> },
-  {
-    href: "/admin/templates",
-    label: "Templates",
-    icon: <TableProperties className="h-4 w-4" />,
-    adminOnly: true,
-  },
+  { href: "/dashboard", label: "Pipeline", icon: <LayoutDashboard size={16} />, section: "main" },
+  { href: "/deals/new", label: "New Deal", icon: <Plus size={16} />, section: "main" },
+  { href: "/deals", label: "Spreads", icon: <BarChart2 size={16} />, section: "main" },
+  { href: "/admin/templates", label: "Borrower Links", icon: <LinkIcon size={16} />, section: "main", adminOnly: true },
+  { href: "/admin/templates", label: "Templates", icon: <TableProperties size={16} />, section: "admin", adminOnly: true },
+  { href: "/settings", label: "Settings", icon: <Settings size={16} />, section: "admin" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -35,65 +36,182 @@ const ROLE_LABELS: Record<string, string> = {
   CREDIT_OFFICER: "Credit Officer",
 };
 
+function BrandMark() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{
+        width: 28,
+        height: 28,
+        background: "var(--accent)",
+        borderRadius: "var(--r-sm)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8.5L6.5 12L13 4.5" stroke="var(--accent-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>LendFlow</div>
+        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userRole = session?.user?.role ?? "";
   const isAdmin = userRole === "ADMIN";
 
-  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const mainItems = NAV_ITEMS.filter((item) => item.section === "main" && (!item.adminOnly || isAdmin));
+  const adminItems = NAV_ITEMS.filter((item) => item.section === "admin" && (!item.adminOnly || isAdmin));
+
+  function NavLink({ item }: { item: NavItem }) {
+    const isActive = pathname === item.href || (item.href !== "/deals" && pathname.startsWith(item.href + "/"));
+    return (
+      <li>
+        <Link
+          href={item.href}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: "7px 12px",
+            borderRadius: "var(--r-md)",
+            fontSize: 13,
+            fontWeight: 500,
+            color: isActive ? "var(--ink)" : "var(--ink-4)",
+            background: isActive ? "var(--panel-hi)" : "transparent",
+            border: isActive ? "1px solid var(--line-2)" : "1px solid transparent",
+            position: "relative",
+            textDecoration: "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          {isActive && (
+            <span style={{
+              position: "absolute",
+              left: 0,
+              top: 6,
+              bottom: 6,
+              width: 3,
+              borderRadius: 2,
+              background: "var(--accent)",
+            }} />
+          )}
+          <span style={{ color: isActive ? "var(--accent-bright)" : "var(--ink-4)", display: "flex" }}>
+            {item.icon}
+          </span>
+          {item.label}
+        </Link>
+      </li>
+    );
+  }
+
+  const userName = session?.user?.name ?? "";
+  const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 
   return (
-    <aside className="flex h-screen w-56 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-14 items-center gap-2 border-b border-gray-200 px-4">
-        <Building2 className="h-5 w-5 text-blue-600" />
-        <span className="text-lg font-bold text-blue-600">LendFlow</span>
+    <aside style={{
+      display: "flex",
+      flexDirection: "column",
+      width: 236,
+      height: "100vh",
+      background: "var(--bg)",
+      borderRight: "1px solid var(--line)",
+      flexShrink: 0,
+    }}>
+      {/* Brand */}
+      <div style={{ height: 60, display: "flex", alignItems: "center", padding: "0 18px", borderBottom: "1px solid var(--line)" }}>
+        <BrandMark />
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3">
-        <ul className="space-y-1">
-          {visibleItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
+      {/* Nav */}
+      <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px" }}>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+          {mainItems.map((item) => <NavLink key={item.href + item.label} item={item} />)}
         </ul>
 
-        <div className="my-4 border-t border-gray-100" />
+        {adminItems.length > 0 && (
+          <>
+            <div style={{ margin: "14px 0 8px", padding: "0 4px" }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "var(--ink-4)", textTransform: "uppercase" }}>Admin</span>
+            </div>
+            <div style={{ borderTop: "1px solid var(--line)", marginBottom: 8 }} />
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+              {adminItems.map((item) => <NavLink key={item.href + item.label} item={item} />)}
+            </ul>
+          </>
+        )}
       </nav>
 
+      {/* Auto-spread card */}
+      <div style={{ margin: "0 10px 10px", padding: "11px 12px", background: "var(--panel)", borderRadius: "var(--r-md)", border: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6, whiteSpace: "nowrap" }}>
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "var(--accent-bright)",
+            flexShrink: 0,
+            animation: "pulseDot 2.4s ease infinite",
+          }} />
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)" }}>Auto-spread on</span>
+        </div>
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--ink-4)", lineHeight: 1.45 }}>
+          New financials are spread automatically. You review the flags.
+        </p>
+      </div>
+
+      {/* User */}
       {session?.user && (
-        <div className="border-t border-gray-200 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-              {session.user.name?.charAt(0).toUpperCase() ?? "?"}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-gray-900">{session.user.name}</p>
-              <span className="inline-block rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-                {ROLE_LABELS[userRole] ?? userRole}
-              </span>
-            </div>
+        <div style={{ borderTop: "1px solid var(--line)", padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 30,
+            height: 30,
+            borderRadius: "50%",
+            background: "var(--panel-hi)",
+            border: "1px solid var(--line-2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--ink-2)",
+            flexShrink: 0,
+          }}>
+            {initials}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {userName}
+            </p>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--ink-4)" }}>
+              {ROLE_LABELS[userRole] ?? userRole}
+            </p>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+            title="Sign out"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--ink-4)",
+              padding: 5,
+              borderRadius: 7,
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink-2)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink-4)"; }}
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
+            <LogOut size={16} />
           </button>
         </div>
       )}

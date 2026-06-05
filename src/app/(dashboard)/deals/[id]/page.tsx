@@ -111,20 +111,36 @@ export default async function DealDetailPage({ params }: PageProps) {
     : null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
+    <div style={{ padding: "24px 28px", background: "var(--bg-deep)", minHeight: "100vh" }}>
+      {/* Header */}
+      <div style={{
+        marginBottom: 24,
+        padding: "20px 24px",
+        borderRadius: "var(--r-lg)",
+        background: "var(--panel)",
+        border: "1px solid var(--line)",
+      }}>
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--ink-4)" }}>
+            <a href="/dashboard" style={{ color: "var(--ink-4)", textDecoration: "none" }}>Pipeline</a>
+            {" → "}
+            <span style={{ color: "var(--ink-3)" }}>{deal.borrowerName}</span>
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{deal.borrowerName}</h1>
-            <p className="mt-0.5 text-sm text-gray-500">{deal.internalName}</p>
-            <div className="mt-2 flex items-center gap-3">
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>
+              {deal.borrowerName}
+            </h1>
+            <p style={{ margin: "2px 0 8px", fontSize: 13, color: "var(--ink-4)" }}>{deal.internalName}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <StagesBadge stage={deal.stage as DealStageType} />
-              <span className="text-xs text-gray-400">
+              <span style={{ fontSize: 12, color: "var(--ink-4)" }}>
                 {daysInStage} day{daysInStage !== 1 ? "s" : ""} in stage
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <SendPortalLinkButton dealId={id} />
             {!isTerminal && nextStage && (
               <AdvanceStageButton
@@ -138,42 +154,46 @@ export default async function DealDetailPage({ params }: PageProps) {
         </div>
 
         {blockReason && (
-          <div className="mt-4 rounded-md bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            <span className="font-semibold">Blocked: </span>
+          <div style={{
+            marginTop: 16,
+            padding: "10px 14px",
+            borderRadius: "var(--r-md)",
+            background: "color-mix(in oklch, var(--s-spr) 12%, transparent)",
+            border: "1px solid color-mix(in oklch, var(--s-spr) 26%, transparent)",
+            fontSize: 13,
+            color: "var(--s-spr)",
+          }}>
+            <span style={{ fontWeight: 600 }}>Blocked: </span>
             {blockReason}
           </div>
         )}
       </div>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
+      {/* Deal Details */}
+      <section style={{
+        marginBottom: 24,
+        padding: "20px 24px",
+        borderRadius: "var(--r-lg)",
+        background: "var(--panel)",
+        border: "1px solid var(--line)",
+      }}>
+        <h2 style={{ margin: "0 0 16px", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-4)" }}>
           Deal Details
         </h2>
-        <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-          <div>
-            <dt className="text-gray-500">Loan Type</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{loanLabel}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">Loan Amount</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{formatCurrency(deal.loanAmount)}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">Banker</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{deal.banker.name}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">Borrower Email</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{deal.borrowerEmail}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">Borrower Phone</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{deal.borrowerPhone ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-gray-500">Created</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">{formatDate(deal.createdAt)}</dd>
-          </div>
+        <dl style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 13 }}>
+          {[
+            { label: "Loan Type", value: loanLabel },
+            { label: "Loan Amount", value: formatCurrency(deal.loanAmount) },
+            { label: "Banker", value: deal.banker.name },
+            { label: "Borrower Email", value: deal.borrowerEmail },
+            { label: "Borrower Phone", value: deal.borrowerPhone ?? "—" },
+            { label: "Created", value: formatDate(deal.createdAt) },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <dt style={{ color: "var(--ink-4)", marginBottom: 2 }}>{label}</dt>
+              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>{value}</dd>
+            </div>
+          ))}
         </dl>
       </section>
 
@@ -224,7 +244,17 @@ function AdvanceStageButton({
       <button
         disabled
         title={blockReason}
-        className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-semibold text-gray-400 cursor-not-allowed"
+        style={{
+          padding: "7px 14px",
+          borderRadius: "var(--r-md)",
+          border: "1px solid var(--line-2)",
+          background: "transparent",
+          color: "var(--ink-4)",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "not-allowed",
+          opacity: 0.5,
+        }}
       >
         Advance to {nextLabel}
       </button>
@@ -265,7 +295,16 @@ function AdvanceStageButton({
       <input type="hidden" name="_confirm" value={`Move from ${currentLabel} to ${nextLabel}`} />
       <button
         type="submit"
-        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+        style={{
+          padding: "7px 14px",
+          borderRadius: "var(--r-md)",
+          background: "var(--accent)",
+          color: "var(--accent-ink)",
+          fontSize: 13,
+          fontWeight: 700,
+          border: "none",
+          cursor: "pointer",
+        }}
       >
         Advance to {nextLabel}
       </button>

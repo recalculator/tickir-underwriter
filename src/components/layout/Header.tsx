@@ -1,9 +1,10 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Bell, Plus, Search } from "lucide-react";
 
 type NotificationItem = {
   id: string;
@@ -13,25 +14,6 @@ type NotificationItem = {
   dealId: string | null;
   deal: { internalName: string; borrowerName: string } | null;
 };
-
-function BellIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-5 w-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-      />
-    </svg>
-  );
-}
 
 function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -98,37 +80,73 @@ function NotificationBell() {
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={handleOpen}
-        className="relative rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 34,
+          height: 34,
+          borderRadius: "var(--r-md)",
+          border: "1px solid var(--line-2)",
+          background: "var(--panel-2)",
+          color: "var(--ink-3)",
+          cursor: "pointer",
+        }}
       >
-        <BellIcon />
+        <Bell size={15} />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-            {unread > 9 ? "9+" : unread}
-          </span>
+          <span style={{
+            position: "absolute",
+            top: 5,
+            right: 5,
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "var(--accent-bright)",
+            boxShadow: "0 0 0 2px var(--bg-deep)",
+          }} />
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-lg">
-          <div className="border-b border-gray-100 px-4 py-3">
-            <p className="text-sm font-semibold text-gray-900">Notifications</p>
+        <div style={{
+          position: "absolute",
+          right: 0,
+          top: "calc(100% + 8px)",
+          zIndex: 50,
+          width: 320,
+          borderRadius: "var(--r-lg)",
+          border: "1px solid var(--line-2)",
+          background: "var(--panel)",
+          boxShadow: "var(--shadow)",
+        }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Notifications</p>
           </div>
           {notifications.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-gray-400">No notifications</div>
+            <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 13, color: "var(--ink-4)" }}>No notifications</div>
           ) : (
-            <ul className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, maxHeight: 320, overflowY: "auto" }}>
               {notifications.map((n) => (
                 <li
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`cursor-pointer px-4 py-3 text-sm hover:bg-gray-50 ${n.read ? "text-gray-500" : "font-medium text-gray-900"}`}
+                  style={{
+                    cursor: "pointer",
+                    padding: "10px 16px",
+                    borderBottom: "1px solid var(--line)",
+                    fontSize: 13,
+                    color: n.read ? "var(--ink-4)" : "var(--ink)",
+                    fontWeight: n.read ? 400 : 500,
+                  }}
                 >
-                  <p>{n.template}</p>
+                  <p style={{ margin: 0 }}>{n.template}</p>
                   {n.deal && (
-                    <p className="mt-0.5 text-xs text-gray-400">{n.deal.borrowerName}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--ink-4)" }}>{n.deal.borrowerName}</p>
                   )}
                 </li>
               ))}
@@ -140,32 +158,88 @@ function NotificationBell() {
   );
 }
 
-export function Header() {
+type HeaderProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+export function Header({ title, subtitle }: HeaderProps) {
   const { data: session } = useSession();
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
-      <div />
-      <div className="flex items-center gap-4">
-        {session?.user && (
-          <>
-            <NotificationBell />
-            <span className="text-sm text-gray-600">
-              {session.user.name} ·{" "}
-              <span className="font-medium text-gray-900 capitalize">
-                {session.user.role?.toLowerCase().replace("_", " ")}
-              </span>
-            </span>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-md px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            >
-              Sign out
-            </button>
-          </>
+    <header style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      height: 60,
+      padding: "0 24px",
+      background: "var(--bg-deep)",
+      borderBottom: "1px solid var(--line)",
+      position: "sticky",
+      top: 0,
+      zIndex: 20,
+      flexShrink: 0,
+    }}>
+      <div>
+        {title && (
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em", lineHeight: 1 }}>
+            {title}
+          </h1>
         )}
-        {!session?.user && (
-          <Link href="/login" className="text-sm text-blue-600 hover:underline">
+        {subtitle && (
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-4)" }}>{subtitle}</p>
+        )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* Search */}
+        <div style={{ position: "relative" }}>
+          <Search size={13} style={{
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--ink-4)",
+          }} />
+          <input
+            type="text"
+            placeholder="Search deals…"
+            style={{
+              padding: "7px 12px 7px 30px",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line-2)",
+              background: "var(--panel-2)",
+              color: "var(--ink)",
+              fontSize: 13,
+              outline: "none",
+              width: 200,
+            }}
+          />
+        </div>
+
+        {session?.user && <NotificationBell />}
+
+        {session?.user ? (
+          <Link
+            href="/deals/new"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: "var(--r-md)",
+              background: "var(--accent)",
+              color: "var(--accent-ink)",
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            <Plus size={14} />
+            New Deal
+          </Link>
+        ) : (
+          <Link href="/login" style={{ fontSize: 13, color: "var(--accent)", textDecoration: "none" }}>
             Sign in
           </Link>
         )}

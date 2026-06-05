@@ -16,11 +16,11 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg-deep)" }}>
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div style={{ display: "flex", flex: 1, flexDirection: "column", overflow: "hidden" }}>
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main style={{ flex: 1, overflowY: "auto" }}>{children}</main>
       </div>
     </div>
   );

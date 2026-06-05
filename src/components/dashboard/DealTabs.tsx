@@ -56,15 +56,15 @@ type DealData = {
 
 type Props = { deal: DealData };
 
-const DOC_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  PENDING: { label: "Not Uploaded", className: "bg-gray-100 text-gray-500" },
-  UPLOADED: { label: "Uploaded", className: "bg-blue-100 text-blue-700" },
-  PROCESSING: { label: "Validating", className: "bg-yellow-100 text-yellow-700" },
-  VALIDATED: { label: "Valid", className: "bg-green-100 text-green-700" },
-  INVALID: { label: "Invalid", className: "bg-red-100 text-red-700" },
+const DOC_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  PENDING:    { label: "Not Uploaded", color: "var(--ink-4)" },
+  UPLOADED:   { label: "Uploaded",     color: "var(--s-doc)" },
+  PROCESSING: { label: "Validating",   color: "var(--s-spr)" },
+  VALIDATED:  { label: "Valid",        color: "var(--s-clo)" },
+  INVALID:    { label: "Invalid",      color: "var(--s-dec)" },
 };
 
-function getDocStatus(item: ChecklistItem, docs: DocumentItem[]): { label: string; className: string; aiNotes?: string | null } {
+function getDocStatus(item: ChecklistItem, docs: DocumentItem[]): { label: string; color: string; aiNotes?: string | null } {
   if (!item.uploaded) return DOC_STATUS_CONFIG.PENDING;
   const doc = docs.find((d) => d.docType === item.docType);
   const cfg = DOC_STATUS_CONFIG[doc?.status ?? ""] ?? DOC_STATUS_CONFIG.UPLOADED;
@@ -83,13 +83,13 @@ function relativeTime(date: Date | string): string {
 }
 
 const ACTION_ICON_MAP: Record<string, React.ReactNode> = {
-  DEAL_CREATED: <Star className="h-4 w-4 text-yellow-500" />,
-  DOCUMENT_UPLOADED: <Upload className="h-4 w-4 text-blue-500" />,
-  DOCUMENT_VALIDATED: <CheckCircle className="h-4 w-4 text-green-500" />,
-  SPREAD_LOCKED: <BarChart2 className="h-4 w-4 text-purple-500" />,
-  SPREAD_COMPLETE: <BarChart2 className="h-4 w-4 text-purple-500" />,
-  STAGE_ADVANCED: <ArrowUpCircle className="h-4 w-4 text-indigo-500" />,
-  CONSISTENCY_CHECK: <CheckCircle className="h-4 w-4 text-teal-500" />,
+  DEAL_CREATED:       <Star size={14} style={{ color: "#d4b94a" }} />,
+  DOCUMENT_UPLOADED:  <Upload size={14} style={{ color: "var(--s-doc)" }} />,
+  DOCUMENT_VALIDATED: <CheckCircle size={14} style={{ color: "var(--s-clo)" }} />,
+  SPREAD_LOCKED:      <BarChart2 size={14} style={{ color: "var(--s-com)" }} />,
+  SPREAD_COMPLETE:    <BarChart2 size={14} style={{ color: "var(--s-com)" }} />,
+  STAGE_ADVANCED:     <ArrowUpCircle size={14} style={{ color: "var(--s-doc)" }} />,
+  CONSISTENCY_CHECK:  <CheckCircle size={14} style={{ color: "var(--accent)" }} />,
 };
 
 export function DealTabs({ deal }: Props) {
@@ -126,210 +126,369 @@ export function DealTabs({ deal }: Props) {
     setTimeout(() => setPortalCopied(false), 2000);
   }
 
+  const docCount = deal.documentChecklist.length;
+  const redCells = deal.spreadSummary?.red ?? 0;
+
   const tabs = [
-    { key: "documents" as const, label: "Documents" },
-    { key: "spread" as const, label: "Spread" },
-    { key: "activity" as const, label: "Activity" },
+    { key: "documents" as const, label: "Documents", badge: docCount > 0 ? String(docCount) : null },
+    { key: "spread" as const, label: "Spread", badge: redCells > 0 ? `${redCells} flag${redCells > 1 ? "s" : ""}` : null },
+    { key: "activity" as const, label: "Activity", badge: null },
   ];
 
   return (
     <>
-    {showPortalModal && portalUrl && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-        <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
-          <h3 className="text-base font-semibold text-gray-900">Portal Link Ready</h3>
+      {showPortalModal && portalUrl && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.6)",
+          padding: "0 16px",
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: 440,
+            borderRadius: "var(--r-xl)",
+            border: "1px solid var(--line-2)",
+            background: "var(--panel)",
+            padding: 24,
+            boxShadow: "var(--shadow)",
+          }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Portal Link Ready</h3>
 
-          <div className="mt-4">
-            <label className="mb-1 block text-xs font-medium text-gray-500">Portal URL</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={portalUrl}
-                className="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none"
-                onFocus={(e) => e.target.select()}
-              />
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 11, fontWeight: 600, color: "var(--ink-4)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Portal URL
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={portalUrl}
+                  onFocus={(e) => e.target.select()}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "var(--r-md)",
+                    border: "1px solid var(--line-2)",
+                    background: "var(--panel-2)",
+                    color: "var(--ink-3)",
+                    fontSize: 12,
+                    fontFamily: "var(--font-geist-mono, ui-monospace)",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  onClick={handleCopyLink}
+                  style={{
+                    flexShrink: 0,
+                    padding: "8px 14px",
+                    borderRadius: "var(--r-md)",
+                    border: "1px solid var(--line-2)",
+                    background: "var(--panel-2)",
+                    color: "var(--ink-2)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {portalCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: "var(--r-md)",
+              background: "var(--panel-2)",
+              fontSize: 13,
+              color: "var(--ink-3)",
+              marginBottom: 20,
+            }}>
+              {smtpConfigured ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Email sent to <strong>{deal.borrowerEmail}</strong>
+                </span>
+              ) : (
+                <span>
+                  Copy and send to <strong>{deal.borrowerEmail}</strong> manually.
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
-                type="button"
-                onClick={handleCopyLink}
-                className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowPortalModal(false)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "var(--r-md)",
+                  background: "var(--accent)",
+                  color: "var(--accent-ink)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
-                {portalCopied ? "Copied!" : "Copy Link"}
+                Done
               </button>
             </div>
           </div>
-
-          <div className="mt-4 rounded-md bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
-            {smtpConfigured ? (
-              <span className="flex items-center gap-1.5">
-                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Email sent to{" "}
-                <span className="font-medium">{deal.borrowerEmail}</span>
-              </span>
-            ) : (
-              <span>
-                Copy this link and send it to your borrower manually at{" "}
-                <span className="font-medium">{deal.borrowerEmail}</span>.
-              </span>
-            )}
-          </div>
-
-          <div className="mt-5 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setShowPortalModal(false)}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              Done
-            </button>
-          </div>
         </div>
-      </div>
-    )}
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 px-6">
-        <nav className="-mb-px flex gap-6">
+      )}
+
+      <div style={{
+        borderRadius: "var(--r-lg)",
+        border: "1px solid var(--line)",
+        background: "var(--bg)",
+        overflow: "hidden",
+      }}>
+        {/* Tab bar */}
+        <div style={{ borderBottom: "1px solid var(--line)", padding: "0 20px", display: "flex", gap: 0 }}>
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`border-b-2 py-4 text-sm font-medium transition ${
-                tab === t.key
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "14px 4px",
+                marginRight: 20,
+                fontSize: 13,
+                fontWeight: 500,
+                color: tab === t.key ? "var(--ink)" : "var(--ink-4)",
+                background: "none",
+                border: "none",
+                borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
+                cursor: "pointer",
+                transition: "color 0.15s",
+              }}
             >
               {t.label}
+              {t.badge && (
+                <span style={{
+                  padding: "1px 6px",
+                  borderRadius: 99,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: t.key === "spread" && redCells > 0 ? "color-mix(in oklch, var(--s-spr) 16%, transparent)" : "var(--panel-hi)",
+                  color: t.key === "spread" && redCells > 0 ? "var(--s-spr)" : "var(--ink-3)",
+                  border: `1px solid ${t.key === "spread" && redCells > 0 ? "color-mix(in oklch, var(--s-spr) 26%, transparent)" : "var(--line-2)"}`,
+                }}>
+                  {t.badge}
+                </span>
+              )}
             </button>
           ))}
-        </nav>
-      </div>
+        </div>
 
-      <div className="p-6">
-        {tab === "documents" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-700">Document Checklist</h2>
-              <button
-                onClick={handleSendPortalLink}
-                disabled={portalLoading}
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {portalLoading ? "Generating…" : "Send Portal Link"}
-              </button>
-            </div>
-
-            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-              {deal.documentChecklist.map((item) => {
-                const status = getDocStatus(item, deal.documents);
-                return (
-                  <li key={item.id} className="flex flex-col gap-1 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{item.label}</p>
-                        {item.required && (
-                          <p className="text-xs text-gray-400">Required</p>
-                        )}
-                      </div>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
-                      >
-                        {status.label}
-                      </span>
-                    </div>
-                    {status.label === "Invalid" && status.aiNotes && (
-                      <p className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">
-                        {status.aiNotes}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {tab === "spread" && (
-          <div className="space-y-4">
-            {deal.hasSpread ? (
-              <>
-                {deal.spreadSummary && (
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      {deal.spreadSummary.green} green
-                    </div>
-                    <div className="flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-700">
-                      <Circle className="h-3.5 w-3.5" />
-                      {deal.spreadSummary.yellow} yellow
-                    </div>
-                    <div className="flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700">
-                      <Circle className="h-3.5 w-3.5" />
-                      {deal.spreadSummary.red} red
-                    </div>
-                    {deal.spreadSummary.locked && (
-                      <div className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
-                        <Lock className="h-3.5 w-3.5" />
-                        Locked
-                      </div>
-                    )}
-                  </div>
-                )}
-                <Link
-                  href={`/deals/${deal.id}/spread`}
-                  className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        {/* Tab content */}
+        <div style={{ padding: 24 }}>
+          {tab === "documents" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink-3)" }}>Document Checklist</h2>
+                <button
+                  onClick={handleSendPortalLink}
+                  disabled={portalLoading}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "var(--r-md)",
+                    background: "var(--accent)",
+                    color: "var(--accent-ink)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: portalLoading ? "not-allowed" : "pointer",
+                    opacity: portalLoading ? 0.6 : 1,
+                  }}
                 >
-                  Review Spread
-                </Link>
-              </>
-            ) : (
-              <div className="rounded-lg border border-dashed border-gray-300 py-12 text-center">
-                <p className="text-sm font-medium text-gray-700">No spread yet</p>
-                <Link
-                  href={`/deals/${deal.id}/spread`}
-                  className="mt-3 inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Run AI Spreading
-                </Link>
+                  {portalLoading ? "Generating…" : "Send Portal Link"}
+                </button>
               </div>
-            )}
-          </div>
-        )}
 
-        {tab === "activity" && (
-          <div>
-            {deal.activityLogs.length === 0 ? (
-              <p className="text-sm text-gray-400">No activity yet</p>
-            ) : (
-              <ul className="space-y-4">
-                {deal.activityLogs.map((log) => (
-                  <li key={log.id} className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                      {ACTION_ICON_MAP[log.actionType] ?? (
-                        <Circle className="h-3.5 w-3.5 text-gray-400" />
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                {deal.documentChecklist.map((item) => {
+                  const status = getDocStatus(item, deal.documents);
+                  return (
+                    <li key={item.id} style={{
+                      padding: "12px 14px",
+                      borderRadius: "var(--r-md)",
+                      background: "var(--panel)",
+                      border: "1px solid var(--line)",
+                      marginBottom: 4,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{item.label}</p>
+                          {item.required && (
+                            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--ink-4)" }}>Required</p>
+                          )}
+                        </div>
+                        <span style={{
+                          padding: "3px 9px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: status.color,
+                          background: `color-mix(in srgb, ${status.color} 14%, transparent)`,
+                          border: `1px solid color-mix(in srgb, ${status.color} 26%, transparent)`,
+                        }}>
+                          {status.label}
+                        </span>
+                      </div>
+                      {status.label === "Invalid" && status.aiNotes && (
+                        <p style={{
+                          margin: "8px 0 0",
+                          fontSize: 12,
+                          color: "var(--s-dec)",
+                          background: "color-mix(in oklch, var(--s-dec) 10%, transparent)",
+                          padding: "6px 10px",
+                          borderRadius: "var(--r-sm)",
+                        }}>
+                          {status.aiNotes}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {tab === "spread" && (
+            <div>
+              {deal.hasSpread ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {deal.spreadSummary && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {[
+                        { count: deal.spreadSummary.green, label: "green", color: "var(--s-clo)" },
+                        { count: deal.spreadSummary.yellow, label: "yellow", color: "var(--s-spr)" },
+                        { count: deal.spreadSummary.red, label: "red", color: "var(--s-dec)" },
+                      ].map(({ count, label, color }) => (
+                        <span key={label} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          padding: "5px 12px",
+                          borderRadius: 99,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color,
+                          background: `color-mix(in srgb, ${color} 14%, transparent)`,
+                          border: `1px solid color-mix(in srgb, ${color} 26%, transparent)`,
+                        }}>
+                          {count} {label}
+                        </span>
+                      ))}
+                      {deal.spreadSummary.locked && (
+                        <span style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          padding: "5px 12px",
+                          borderRadius: 99,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "var(--ink-3)",
+                          background: "var(--panel-2)",
+                          border: "1px solid var(--line-2)",
+                        }}>
+                          <Lock size={11} /> Locked
+                        </span>
                       )}
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-800">
-                        <span className="font-semibold">{log.userName}</span>
-                        {" — "}
-                        {log.actionType.replace(/_/g, " ").toLowerCase()}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-400">
-                        {relativeTime(log.createdAt)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+                  )}
+                  <Link
+                    href={`/deals/${deal.id}/spread`}
+                    style={{
+                      display: "inline-block",
+                      padding: "8px 18px",
+                      borderRadius: "var(--r-md)",
+                      background: "var(--accent)",
+                      color: "var(--accent-ink)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Review Spread
+                  </Link>
+                </div>
+              ) : (
+                <div style={{
+                  padding: 48,
+                  textAlign: "center",
+                  borderRadius: "var(--r-lg)",
+                  border: "1px dashed var(--line-2)",
+                }}>
+                  <p style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 600, color: "var(--ink-3)" }}>No spread yet</p>
+                  <Link
+                    href={`/deals/${deal.id}/spread`}
+                    style={{
+                      display: "inline-block",
+                      padding: "8px 18px",
+                      borderRadius: "var(--r-md)",
+                      background: "var(--accent)",
+                      color: "var(--accent-ink)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Run AI Spreading
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "activity" && (
+            <div>
+              {deal.activityLogs.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--ink-4)" }}>No activity yet</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+                  {deal.activityLogs.map((log) => (
+                    <li key={log.id} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{
+                        marginTop: 2,
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        background: "var(--panel-2)",
+                        border: "1px solid var(--line-2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}>
+                        {ACTION_ICON_MAP[log.actionType] ?? <Circle size={12} style={{ color: "var(--ink-4)" }} />}
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--ink)" }}>
+                          <span style={{ fontWeight: 600 }}>{log.userName}</span>
+                          {" — "}
+                          {log.actionType.replace(/_/g, " ").toLowerCase()}
+                        </p>
+                        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--ink-4)" }}>
+                          {relativeTime(log.createdAt)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 }
-

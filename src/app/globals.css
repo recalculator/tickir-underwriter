@@ -1,26 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --accent:        #3fcf8e;
+  --accent-bright: #4eeaa0;
+  --accent-deep:   #2a9e6a;
+  --accent-ink:    #0d2a1f;
+  --accent-glow:   rgba(63,207,142,0.16);
+  --bg:            #1a1f1c;
+  --bg-deep:       #15181a;
+  --panel:         #212724;
+  --panel-2:       #262d28;
+  --panel-hi:      #2d352f;
+  --line:          rgba(255,255,255,0.07);
+  --line-2:        rgba(255,255,255,0.12);
+  --ink:           #f0f5f2;
+  --ink-2:         #c2cfc6;
+  --ink-3:         #8a9e90;
+  --ink-4:         #5a6e60;
+  --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 8px 24px -8px rgba(0,0,0,0.5);
+  --s-doc:  #6ba8e5;
+  --s-spr:  #d4b94a;
+  --s-rev:  #e8935a;
+  --s-com:  #b87ee8;
+  --s-clo:  #3fcf8e;
+  --s-dec:  #e05a5a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { box-sizing: border-box; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-deep);
+  color: var(--ink);
+  font-family: 'Geist', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
+.mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.35s var(--ease); }

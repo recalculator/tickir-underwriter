@@ -7,6 +7,50 @@ import { Lock } from "lucide-react";
 
 type UserType = "banker" | "borrower";
 
+function BrandMark() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginBottom: 28 }}>
+      <div style={{
+        width: 40,
+        height: 40,
+        background: "var(--accent)",
+        borderRadius: "var(--r-md)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M4 11.5L9 16.5L18 6" stroke="var(--accent-ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>LendFlow</div>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
+      </div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "9px 12px",
+  borderRadius: "var(--r-md)",
+  border: "1px solid var(--line-2)",
+  background: "var(--panel-2)",
+  color: "var(--ink)",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  color: "var(--ink-3)",
+};
+
 export default function SignupPage() {
   const router = useRouter();
   const [userType, setUserType] = useState<UserType>("banker");
@@ -53,28 +97,42 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-blue-600">LendFlow</h1>
-          <p className="mt-2 text-sm text-gray-600">Commercial Lending Platform</p>
-        </div>
+    <div style={{
+      display: "flex",
+      minHeight: "100vh",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "var(--bg-deep)",
+      padding: "0 16px",
+    }}>
+      <div style={{ width: "100%", maxWidth: 440 }}>
+        <BrandMark />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-          <div className="mb-6 grid grid-cols-2 gap-3">
+        <div style={{
+          borderRadius: "var(--r-xl)",
+          border: "1px solid var(--line-2)",
+          background: "var(--panel)",
+          padding: 28,
+          boxShadow: "var(--shadow)",
+        }}>
+          {/* User type selector */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
             <button
               type="button"
               onClick={() => setUserType("banker")}
-              className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                userType === "banker"
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
+              style={{
+                padding: "14px 12px",
+                borderRadius: "var(--r-md)",
+                border: `2px solid ${userType === "banker" ? "var(--accent)" : "var(--line-2)"}`,
+                background: userType === "banker" ? "var(--accent-glow)" : "transparent",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
             >
-              <p className="text-sm font-semibold text-gray-900">
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
                 I&apos;m a Banker / Bank Staff
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--ink-4)" }}>
                 Create your bank&apos;s LendFlow account
               </p>
             </button>
@@ -82,17 +140,20 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => setUserType("borrower")}
-              className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                userType === "borrower"
-                  ? "border-gray-400 bg-gray-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
+              style={{
+                padding: "14px 12px",
+                borderRadius: "var(--r-md)",
+                border: `2px solid ${userType === "borrower" ? "var(--line-2)" : "var(--line)"}`,
+                background: userType === "borrower" ? "var(--panel-2)" : "transparent",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
             >
-              <div className="flex items-start gap-2">
-                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <Lock size={13} style={{ marginTop: 2, color: "var(--ink-4)", flexShrink: 0 }} />
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">I&apos;m a Borrower</p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>I&apos;m a Borrower</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--ink-4)" }}>
                     Your banker will send you a secure link. No account needed.
                   </p>
                 </div>
@@ -101,115 +162,82 @@ export default function SignupPage() {
           </div>
 
           {userType === "borrower" ? (
-            <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-800">
-              Your banker will email you a secure upload link. No account needed
-              — just check your email.
+            <div style={{
+              padding: "14px 16px",
+              borderRadius: "var(--r-md)",
+              background: "var(--accent-glow)",
+              border: "1px solid var(--accent-deep)",
+              fontSize: 13,
+              color: "var(--ink-2)",
+            }}>
+              Your banker will email you a secure upload link. No account needed — just check your email.
             </div>
           ) : (
             <>
-              <h2 className="mb-4 text-xl font-semibold text-gray-900">Create your account</h2>
+              <h2 style={{ margin: "0 0 18px", fontSize: 16, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.01em" }}>
+                Create your account
+              </h2>
 
               {error && (
-                <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+                <div style={{
+                  marginBottom: 16,
+                  padding: "10px 14px",
+                  borderRadius: "var(--r-md)",
+                  background: "rgba(224,90,90,0.12)",
+                  border: "1px solid rgba(224,90,90,0.3)",
+                  fontSize: 13,
+                  color: "var(--s-dec)",
+                }}>
+                  {error}
+                </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="bankName"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Bank Name
-                  </label>
-                  <input
-                    id="bankName"
-                    type="text"
-                    required
-                    value={form.bankName}
-                    onChange={(e) => updateField("bankName", e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="First National Bank"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
-                    Your Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => updateField("name", e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="Jane Smith"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={(e) => updateField("email", e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="jane@firstnational.com"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    value={form.password}
-                    onChange={(e) => updateField("password", e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="••••••••"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    required
-                    value={form.confirmPassword}
-                    onChange={(e) => updateField("confirmPassword", e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="••••••••"
-                  />
-                </div>
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { id: "bankName", label: "Bank Name", type: "text", placeholder: "First National Bank", field: "bankName" as const },
+                  { id: "name", label: "Your Name", type: "text", placeholder: "Jane Smith", field: "name" as const },
+                  { id: "email", label: "Email", type: "email", placeholder: "jane@firstnational.com", field: "email" as const },
+                  { id: "password", label: "Password", type: "password", placeholder: "••••••••", field: "password" as const },
+                  { id: "confirmPassword", label: "Confirm Password", type: "password", placeholder: "••••••••", field: "confirmPassword" as const },
+                ].map(({ id, label, type, placeholder, field }) => (
+                  <div key={id}>
+                    <label htmlFor={id} style={labelStyle}>{label}</label>
+                    <input
+                      id={id}
+                      type={type}
+                      required
+                      value={form[field]}
+                      onChange={(e) => updateField(field, e.target.value)}
+                      style={inputStyle}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                ))}
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    borderRadius: "var(--r-md)",
+                    background: "var(--accent)",
+                    color: "var(--accent-ink)",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.7 : 1,
+                    marginTop: 4,
+                  }}
                 >
                   {loading ? "Creating account…" : "Create account"}
                 </button>
               </form>
 
-              <p className="mt-4 text-center text-sm text-gray-600">
+              <p style={{ margin: "18px 0 0", textAlign: "center", fontSize: 13, color: "var(--ink-4)" }}>
                 Already have an account?{" "}
-                <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">
+                <Link href="/login" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>
                   Sign in
                 </Link>
               </p>
