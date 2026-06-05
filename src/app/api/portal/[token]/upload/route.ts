@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { buildS3Key, uploadFile, hasS3Config } from "@/lib/s3";
 import { validateDocument } from "@/lib/validation";
+import { runConsistencyCheck } from "@/lib/consistency-check";
 import type { ApiResponse } from "@/types";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -107,9 +108,33 @@ export async function POST(
     },
   });
 
-  validateDocument(document.id).catch((err) => {
-    console.error(`[validateDocument] Failed for ${document.id}:`, err);
-  });
+  validateDocument(document.id)
+    .then(async () => {
+      const checklist = await prisma.documentChecklist.findMany({
+        where: { dealId: deal.id, required: true },
+      });
+      const allValidated = checklist.length > 0 && checklist.every((item) => item.validated);
+
+      if (allValidated) {
+        await prisma.notification.create({
+          data: {
+            bankId: deal.bankId,
+            recipientType: "BANKER",
+            recipientId: deal.bankerId,
+            dealId: deal.id,
+            channel: "IN_APP",
+            template: `All documents collected for ${deal.internalName}`,
+            read: false,
+          },
+        });
+        runConsistencyCheck(deal.id).catch((err) => {
+          console.error(`[runConsistencyCheck] Failed for ${deal.id}:`, err);
+        });
+      }
+    })
+    .catch((err) => {
+      console.error(`[validateDocument] Failed for ${document.id}:`, err);
+    });
 
   return NextResponse.json(
     { success: true, data: { documentId: document.id, status: "VALIDATING" }, error: null },

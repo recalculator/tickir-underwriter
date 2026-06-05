@@ -1,9 +1,11 @@
 import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { StagesBadge } from "@/components/dashboard/StagesBadge";
 import { LOAN_TYPE_LABELS, DEAL_STAGE_LABELS } from "@/lib/constants";
+import { DealTabs } from "@/components/dashboard/DealTabs";
 import type { DealStageType } from "@/types";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -26,6 +28,12 @@ function formatDate(date: Date): string {
   }).format(new Date(date));
 }
 
+function getDaysInStage(updatedAt: Date): number {
+  return Math.floor(
+    (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
 export default async function DealDetailPage({ params }: PageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
@@ -40,160 +48,133 @@ export default async function DealDetailPage({ params }: PageProps) {
       documents: { orderBy: { createdAt: "desc" } },
       activityLogs: {
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 50,
         include: { user: { select: { name: true } } },
       },
+      spreads: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
   if (!deal) notFound();
 
   const loanLabel =
-    LOAN_TYPE_LABELS[deal.loanType as keyof typeof LOAN_TYPE_LABELS] ??
-    deal.loanType;
+    LOAN_TYPE_LABELS[deal.loanType as keyof typeof LOAN_TYPE_LABELS] ?? deal.loanType;
+  const daysInStage = getDaysInStage(deal.updatedAt);
+  const hasSpread = deal.spreads.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {deal.borrowerName}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">{deal.borrowerName}</h1>
           <p className="mt-0.5 text-sm text-gray-500">{deal.internalName}</p>
+          <p className="mt-1 text-xs text-gray-400">{daysInStage} day{daysInStage !== 1 ? "s" : ""} in stage</p>
         </div>
-        <StagesBadge stage={deal.stage as DealStageType} />
+        <div className="flex items-center gap-3">
+          <StagesBadge stage={deal.stage as DealStageType} />
+          <AdvanceStageButton dealId={id} currentStage={deal.stage} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Deal Details
-            </h2>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="text-gray-500">Loan Type</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">{loanLabel}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Loan Amount</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">
-                  {formatCurrency(deal.loanAmount)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Borrower Email</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">
-                  {deal.borrowerEmail}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Borrower Phone</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">
-                  {deal.borrowerPhone ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Banker</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">
-                  {deal.banker.name}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Created</dt>
-                <dd className="mt-0.5 font-medium text-gray-900">
-                  {formatDate(deal.createdAt)}
-                </dd>
-              </div>
-            </dl>
-          </section>
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          Deal Details
+        </h2>
+        <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-gray-500">Loan Type</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{loanLabel}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Loan Amount</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{formatCurrency(deal.loanAmount)}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Banker</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{deal.banker.name}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Borrower Email</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{deal.borrowerEmail}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Borrower Phone</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{deal.borrowerPhone ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Created</dt>
+            <dd className="mt-0.5 font-medium text-gray-900">{formatDate(deal.createdAt)}</dd>
+          </div>
+        </dl>
+      </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Document Checklist
-            </h2>
-            <ul className="space-y-2">
-              {deal.documentChecklist.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm"
-                >
-                  <span className="text-gray-700">{item.label}</span>
-                  <span
-                    className={`text-xs font-medium ${
-                      item.validated
-                        ? "text-green-600"
-                        : item.uploaded
-                        ? "text-yellow-600"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {item.validated
-                      ? "Validated"
-                      : item.uploaded
-                      ? "Uploaded"
-                      : "Pending"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-
-        <aside className="space-y-6">
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Stage Progress
-            </h2>
-            <ol className="space-y-2">
-              {(Object.keys(DEAL_STAGE_LABELS) as DealStageType[]).map(
-                (stage) => {
-                  const isCurrent = stage === deal.stage;
-                  return (
-                    <li
-                      key={stage}
-                      className={`flex items-center gap-2 text-sm ${
-                        isCurrent ? "font-semibold text-blue-600" : "text-gray-500"
-                      }`}
-                    >
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          isCurrent ? "bg-blue-600" : "bg-gray-300"
-                        }`}
-                      />
-                      {DEAL_STAGE_LABELS[stage]}
-                    </li>
-                  );
-                }
-              )}
-            </ol>
-          </section>
-
-          <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Recent Activity
-            </h2>
-            {deal.activityLogs.length === 0 ? (
-              <p className="text-sm text-gray-400">No activity yet</p>
-            ) : (
-              <ul className="space-y-3">
-                {deal.activityLogs.map((log) => (
-                  <li key={log.id} className="text-xs text-gray-600">
-                    <span className="font-medium text-gray-900">
-                      {log.user?.name ?? "System"}
-                    </span>{" "}
-                    {log.actionType.replace(/_/g, " ").toLowerCase()}
-                    <br />
-                    <span className="text-gray-400">
-                      {formatDate(log.createdAt)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
-      </div>
+      <DealTabs
+        deal={{
+          id: deal.id,
+          internalName: deal.internalName,
+          documentChecklist: deal.documentChecklist,
+          documents: deal.documents.map((d) => ({
+            id: d.id,
+            docType: d.docType,
+            originalFilename: d.originalFilename,
+            status: d.status,
+            aiNotes: d.aiNotes,
+          })),
+          activityLogs: deal.activityLogs.map((log) => ({
+            id: log.id,
+            actionType: log.actionType,
+            createdAt: log.createdAt,
+            userName: log.user?.name ?? "System",
+          })),
+          hasSpread,
+        }}
+      />
     </div>
+  );
+}
+
+const TERMINAL_STAGES = new Set(["CLOSED", "DECLINED"]);
+
+function AdvanceStageButton({ dealId, currentStage }: { dealId: string; currentStage: string }) {
+  if (TERMINAL_STAGES.has(currentStage)) return null;
+
+  return (
+    <form
+      action={async () => {
+        "use server";
+        const { redirect: serverRedirect } = await import("next/navigation");
+        const { prisma: db } = await import("@/lib/prisma");
+        const { getServerSession: getSession } = await import("next-auth");
+        const { authOptions: opts } = await import("@/lib/auth");
+        const { DEAL_STAGES } = await import("@/lib/constants");
+        const session = await getSession(opts);
+        if (!session?.user) return;
+        const deal = await db.deal.findFirst({ where: { id: dealId, bankId: session.user.bankId } });
+        if (!deal) { serverRedirect(`/deals/${dealId}`); return; }
+        const idx = DEAL_STAGES.indexOf(deal.stage as (typeof DEAL_STAGES)[number]);
+        const next = idx !== -1 ? DEAL_STAGES[idx + 1] : null;
+        if (!next) { serverRedirect(`/deals/${dealId}`); return; }
+        await db.$transaction([
+          db.deal.update({ where: { id: dealId }, data: { stage: next } }),
+          db.activityLog.create({
+            data: {
+              dealId,
+              bankId: deal.bankId,
+              userId: session.user.id,
+              actionType: "STAGE_ADVANCED",
+              metadataJson: { from: deal.stage, to: next },
+            },
+          }),
+        ]);
+        serverRedirect(`/deals/${dealId}`);
+      }}
+    >
+      <button
+        type="submit"
+        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        Advance Stage
+      </button>
+    </form>
   );
 }
