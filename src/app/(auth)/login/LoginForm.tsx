@@ -50,7 +50,8 @@ export function LoginForm() {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold text-gray-900">Sign in to your account</h2>
+          <h2 className="mb-1 text-xl font-semibold text-gray-900">Sign in to your account</h2>
+          <p className="mb-6 text-sm text-gray-500">Bank staff sign in below</p>
 
           {justRegistered && (
             <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
@@ -108,6 +109,11 @@ export function LoginForm() {
               Sign up
             </Link>
           </p>
+
+          <div className="mt-4 rounded-md bg-gray-50 p-3 text-sm text-gray-500">
+            Are you a borrower? Check your email for the secure upload link your banker sent you.
+            No login needed.
+          </div>
         </div>
       </div>
     </div>
