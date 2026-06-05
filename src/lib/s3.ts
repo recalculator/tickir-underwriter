@@ -5,10 +5,13 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import fs from "fs/promises";
+import path from "path";
 
 const S3_BUCKET = process.env.AWS_S3_BUCKET ?? "";
 const S3_REGION = process.env.AWS_REGION ?? "us-east-1";
 const PRESIGNED_URL_EXPIRES_SECONDS = 3600;
+const LOCAL_UPLOADS_DIR = path.join(process.cwd(), ".local-uploads");
 
 const s3Client = new S3Client({
   region: S3_REGION,
@@ -71,6 +74,13 @@ export async function uploadFile(
   body: Buffer,
   contentType: string
 ): Promise<void> {
+  if (!hasS3Config()) {
+    const localPath = path.join(LOCAL_UPLOADS_DIR, s3Key);
+    await fs.mkdir(path.dirname(localPath), { recursive: true });
+    await fs.writeFile(localPath, body);
+    return;
+  }
+
   const command = new PutObjectCommand({
     Bucket: S3_BUCKET,
     Key: s3Key,
@@ -82,6 +92,11 @@ export async function uploadFile(
 }
 
 export async function downloadFile(s3Key: string): Promise<Buffer> {
+  if (!hasS3Config()) {
+    const localPath = path.join(LOCAL_UPLOADS_DIR, s3Key);
+    return fs.readFile(localPath);
+  }
+
   const { GetObjectCommand: GetCmd } = await import("@aws-sdk/client-s3");
   const command = new GetCmd({ Bucket: S3_BUCKET, Key: s3Key });
   const response = await s3Client.send(command);

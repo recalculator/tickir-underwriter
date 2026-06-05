@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import path from "path";
-import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
-import { buildS3Key, uploadFile, hasS3Config } from "@/lib/s3";
+import { buildS3Key, uploadFile } from "@/lib/s3";
 import { validateDocument } from "@/lib/validation";
 import { runConsistencyCheck } from "@/lib/consistency-check";
 import { portalUploadLimiter } from "@/lib/rate-limit";
@@ -75,20 +74,8 @@ export async function POST(
   const { deal } = record;
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  let s3Key: string;
-  let aiNotesPrefix: string | null = null;
-
-  if (hasS3Config()) {
-    s3Key = buildS3Key(deal.bankId, deal.id, file.name);
-    await uploadFile(s3Key, buffer, file.type);
-  } else {
-    const tmpFilename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const tmpPath = path.join("/tmp", tmpFilename);
-    await fs.writeFile(tmpPath, buffer);
-    s3Key = tmpPath;
-    aiNotesPrefix = `[Saved to /tmp — no S3 config] `;
-    console.warn(`[portal-upload] No S3 config. Saved to ${tmpPath}`);
-  }
+  const s3Key = buildS3Key(deal.bankId, deal.id, file.name);
+  await uploadFile(s3Key, buffer, file.type);
 
   const document = await prisma.document.create({
     data: {
@@ -99,7 +86,6 @@ export async function POST(
       originalFilename: sanitizeFilename(file.name),
       fileSize: file.size,
       status: "PENDING",
-      aiNotes: aiNotesPrefix,
     },
   });
 

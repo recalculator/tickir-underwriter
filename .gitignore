@@ -43,3 +43,6 @@ prisma/migrations/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local file upload fallback
+.local-uploads/

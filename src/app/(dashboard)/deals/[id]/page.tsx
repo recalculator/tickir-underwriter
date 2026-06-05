@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { StagesBadge } from "@/components/dashboard/StagesBadge";
-import { LOAN_TYPE_LABELS, DEAL_STAGES } from "@/lib/constants";
+import { LOAN_TYPE_LABELS, DEAL_STAGES, DEAL_STAGE_LABELS } from "@/lib/constants";
 import { DealTabs } from "@/components/dashboard/DealTabs";
 import { SendPortalLinkButton } from "@/components/dashboard/SendPortalLinkButton";
 import type { DealStageType } from "@/types";
@@ -32,6 +32,22 @@ function getDaysInStage(updatedAt: Date): number {
   return Math.floor(
     (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24)
   );
+}
+
+type BlockReason = string | null;
+
+function getBlockReason(
+  currentStage: string,
+  allRequiredDocsValidated: boolean,
+  hasLockedSpread: boolean
+): BlockReason {
+  if (currentStage === "DOCUMENT_COLLECTION" && !allRequiredDocsValidated) {
+    return "All required documents must be validated before advancing to Spreading.";
+  }
+  if (currentStage === "SPREADING" && !hasLockedSpread) {
+    return "The spread must be locked before advancing to Credit Review.";
+  }
+  return null;
 }
 
 export default async function DealDetailPage({ params }: PageProps) {
@@ -78,6 +94,22 @@ export default async function DealDetailPage({ params }: PageProps) {
       }
     : null;
 
+  const allRequiredDocsValidated =
+    deal.documentChecklist.filter((d) => d.required).length > 0 &&
+    deal.documentChecklist.filter((d) => d.required).every((d) => d.validated);
+
+  const hasLockedSpread = Boolean(spread?.lockedAt);
+
+  const TERMINAL_STAGES = new Set(["CLOSED", "DECLINED"]);
+  const isTerminal = TERMINAL_STAGES.has(deal.stage);
+
+  const stageIdx = DEAL_STAGES.indexOf(deal.stage as (typeof DEAL_STAGES)[number]);
+  const nextStage = !isTerminal && stageIdx !== -1 ? (DEAL_STAGES[stageIdx + 1] ?? null) : null;
+
+  const blockReason = nextStage
+    ? getBlockReason(deal.stage, allRequiredDocsValidated, hasLockedSpread)
+    : null;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -94,10 +126,23 @@ export default async function DealDetailPage({ params }: PageProps) {
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <SendPortalLinkButton dealId={id} />
-            <AdvanceStageButton dealId={id} currentStage={deal.stage} />
+            {!isTerminal && nextStage && (
+              <AdvanceStageButton
+                dealId={id}
+                currentStage={deal.stage}
+                nextStage={nextStage}
+                blockReason={blockReason}
+              />
+            )}
           </div>
-
         </div>
+
+        {blockReason && (
+          <div className="mt-4 rounded-md bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+            <span className="font-semibold">Blocked: </span>
+            {blockReason}
+          </div>
+        )}
       </div>
 
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -159,11 +204,32 @@ export default async function DealDetailPage({ params }: PageProps) {
   );
 }
 
-const TERMINAL_STAGES = new Set(["CLOSED", "DECLINED"]);
+function AdvanceStageButton({
+  dealId,
+  currentStage,
+  nextStage,
+  blockReason,
+}: {
+  dealId: string;
+  currentStage: string;
+  nextStage: string;
+  blockReason: string | null;
+}) {
+  const labels = DEAL_STAGE_LABELS as Record<string, string>;
+  const currentLabel = labels[currentStage] ?? currentStage;
+  const nextLabel = labels[nextStage] ?? nextStage;
 
-
-function AdvanceStageButton({ dealId, currentStage }: { dealId: string; currentStage: string }) {
-  if (TERMINAL_STAGES.has(currentStage)) return null;
+  if (blockReason) {
+    return (
+      <button
+        disabled
+        title={blockReason}
+        className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-semibold text-gray-400 cursor-not-allowed"
+      >
+        Advance to {nextLabel}
+      </button>
+    );
+  }
 
   return (
     <form
@@ -178,7 +244,7 @@ function AdvanceStageButton({ dealId, currentStage }: { dealId: string; currentS
         if (!session?.user) return;
         const deal = await db.deal.findFirst({ where: { id: dealId, bankId: session.user.bankId } });
         if (!deal) { serverRedirect(`/deals/${dealId}`); return; }
-        const idx = stages.indexOf(deal.stage as (typeof DEAL_STAGES)[number]);
+        const idx = stages.indexOf(deal.stage as (typeof stages)[number]);
         const next = idx !== -1 ? stages[idx + 1] : null;
         if (!next) { serverRedirect(`/deals/${dealId}`); return; }
         await db.$transaction([
@@ -196,11 +262,12 @@ function AdvanceStageButton({ dealId, currentStage }: { dealId: string; currentS
         serverRedirect(`/deals/${dealId}`);
       }}
     >
+      <input type="hidden" name="_confirm" value={`Move from ${currentLabel} to ${nextLabel}`} />
       <button
         type="submit"
         className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
       >
-        Advance Stage
+        Advance to {nextLabel}
       </button>
     </form>
   );

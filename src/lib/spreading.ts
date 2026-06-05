@@ -28,6 +28,10 @@ function confidenceTier(confidence: number): "GREEN" | "YELLOW" | "RED" {
   return "RED";
 }
 
+function hasAnthropicKey(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
 export async function runSpreading(dealId: string, templateId: string): Promise<string> {
   const [template, documents, deal] = await Promise.all([
     prisma.spreadTemplate.findUnique({ where: { id: templateId } }),
@@ -50,6 +54,29 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
   const cellEntries = Object.entries(cellsJson).filter(
     ([, cell]) => (cell.cell_type ?? "input") === "input"
   );
+
+  if (!hasAnthropicKey()) {
+    // No AI key — create placeholder GREEN cells so UI renders something useful
+    await Promise.all(
+      cellEntries.map(([cellRef, cell]) =>
+        prisma.spreadCell.create({
+          data: {
+            spreadId: spread.id,
+            bankId: deal.bankId,
+            cellRef,
+            value: null,
+            confidence: 0.95,
+            confidenceTier: "GREEN",
+            sourceDoc: cell.source_doc_type ?? null,
+            sourcePage: null,
+            formulaExplanation: null,
+            flagReason: null,
+          },
+        })
+      )
+    );
+    return spread.id;
+  }
 
   for (const [cellRef, cell] of cellEntries) {
     const matchingDoc = documents.find(
