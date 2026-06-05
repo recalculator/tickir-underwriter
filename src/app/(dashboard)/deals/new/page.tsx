@@ -44,7 +44,7 @@ export default function NewDealPage() {
         return;
       }
 
-      router.push(`/deals/${json.data.id}`);
+      router.push("/dashboard");
     } catch {
       setError("Network error. Please try again.");
     } finally {

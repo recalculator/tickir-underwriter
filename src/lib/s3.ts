@@ -57,3 +57,39 @@ export async function deleteS3Object(s3Key: string): Promise<void> {
 
   await s3Client.send(command);
 }
+
+export function hasS3Config(): boolean {
+  return Boolean(
+    process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
+      process.env.AWS_S3_BUCKET
+  );
+}
+
+export async function uploadFile(
+  s3Key: string,
+  body: Buffer,
+  contentType: string
+): Promise<void> {
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: s3Key,
+    Body: body,
+    ContentType: contentType,
+  });
+
+  await s3Client.send(command);
+}
+
+export async function downloadFile(s3Key: string): Promise<Buffer> {
+  const { GetObjectCommand: GetCmd } = await import("@aws-sdk/client-s3");
+  const command = new GetCmd({ Bucket: S3_BUCKET, Key: s3Key });
+  const response = await s3Client.send(command);
+  const stream = response.Body as NodeJS.ReadableStream;
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", reject);
+  });
+}
