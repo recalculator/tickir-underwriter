@@ -13,7 +13,7 @@ function BrandMark() {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginBottom: 28 }}>
       <TickrLogo size={40} />
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>Tickr AI</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>Tickir AI</div>
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
       </div>
     </div>
@@ -122,7 +122,7 @@ export default function SignupPage() {
                 I&apos;m a Banker / Bank Staff
               </p>
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--ink-4)" }}>
-                Create your bank&apos;s Tickr AI account
+                Create your bank&apos;s Tickir AI account
               </p>
             </button>
 

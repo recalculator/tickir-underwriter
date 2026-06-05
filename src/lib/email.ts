@@ -24,7 +24,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
     });
 
     await transporter.sendMail({
-      from: `"Tickr AI" <${smtpUser}>`,
+      from: `"Tickir AI" <${smtpUser}>`,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,

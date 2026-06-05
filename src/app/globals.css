@@ -32,6 +32,7 @@
   --s-dec:  #e05a5a;
 }
 
+html { scroll-behavior: smooth; }
 * { box-sizing: border-box; }
 body {
   background: var(--bg-deep);

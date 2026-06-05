@@ -37,13 +37,13 @@ const ROLE_LABELS: Record<string, string> = {
 
 function BrandMark() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
       <TickrLogo size={28} />
       <div>
-        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>Tickr AI</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>Tickir AI</div>
         <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
       </div>
-    </div>
+    </Link>
   );
 }
 

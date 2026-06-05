@@ -43,7 +43,7 @@ function buildPortalEmail({
                     <span style="color:#0d2a1f;font-size:18px;font-weight:700;line-height:32px;">✓</span>
                   </td>
                   <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="color:#f0f5f2;font-size:18px;font-weight:700;letter-spacing:-0.02em;">Tickr AI</span>
+                    <span style="color:#f0f5f2;font-size:18px;font-weight:700;letter-spacing:-0.02em;">Tickir AI</span>
                   </td>
                 </tr>
               </table>
@@ -133,7 +133,7 @@ function buildPortalEmail({
           <tr>
             <td style="background:#f0f0f0;border-radius:0 0 12px 12px;padding:20px 36px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#999;">
-                Sent by <strong>${bankName}</strong> via Tickr AI · This is a secure, time-limited link
+                Sent by <strong>${bankName}</strong> via Tickir AI · This is a secure, time-limited link
               </p>
             </td>
           </tr>

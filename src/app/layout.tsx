@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tickr AI — Commercial Lending Platform",
+  title: "Tickir AI — Commercial Lending Platform",
   description: "AI-powered commercial lending platform",
 };
 

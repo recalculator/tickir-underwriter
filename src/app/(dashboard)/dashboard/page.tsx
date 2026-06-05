@@ -164,7 +164,7 @@ function OnboardingChecklist({ templateCount }: { templateCount: number }) {
       background: "var(--panel)",
       padding: 32,
     }}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Welcome to Tickr AI</h2>
+      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Welcome to Tickir AI</h2>
       <p style={{ margin: "4px 0 24px", fontSize: 13, color: "var(--ink-4)" }}>Complete these steps to get started.</p>
       <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
         <CheckItem done label="Account created" />

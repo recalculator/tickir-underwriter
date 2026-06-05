@@ -37,7 +37,7 @@ export default async function PortalPage({ params }: Props) {
       {/* Colored bank header bar */}
       <div style={{ backgroundColor: bankColor }} className="py-3 px-6">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
-          <span className="text-lg font-bold text-white">Tickr AI</span>
+          <span className="text-lg font-bold text-white">Tickir AI</span>
           <span className="text-sm text-white/80">{deal.bank.name}</span>
         </div>
       </div>
