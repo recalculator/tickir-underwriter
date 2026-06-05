@@ -99,7 +99,7 @@ export async function GET(
     id: deal.id,
     borrowerName: deal.borrowerName,
     loanType: deal.loanType,
-    loanAmount: deal.loanAmount,
+    loanAmount: Number(deal.loanAmount),
     stage: deal.stage,
     createdAt: deal.createdAt,
     updatedAt: deal.updatedAt,
