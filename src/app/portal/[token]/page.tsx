@@ -1,30 +1,10 @@
-import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { validateToken } from "./validate-token";
 import { PortalUploadClient } from "./PortalUploadClient";
+import Link from "next/link";
 
 type Props = {
   params: Promise<{ token: string }>;
 };
-
-async function validateToken(rawToken: string) {
-  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-  const record = await prisma.borrowerToken.findUnique({
-    where: { tokenHash },
-    include: {
-      deal: {
-        include: {
-          bank: true,
-          documentChecklist: { orderBy: { createdAt: "asc" } },
-        },
-      },
-    },
-  });
-
-  if (!record) return null;
-  if (record.expiresAt < new Date()) return null;
-
-  return record;
-}
 
 export default async function PortalPage({ params }: Props) {
   const { token } = await params;
@@ -62,10 +42,25 @@ export default async function PortalPage({ params }: Props) {
         </div>
       </div>
 
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
+      <header className="border-b border-gray-200 bg-white px-6 pt-4">
         <div className="mx-auto max-w-3xl">
           <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">{deal.bank.name}</p>
           <h1 className="mt-0.5 text-xl font-bold text-gray-900">Document Upload Portal</h1>
+          <nav className="mt-4 flex gap-0">
+            <Link
+              href={`/portal/${token}`}
+              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px"
+              style={{ borderColor: bankColor, color: bankColor }}
+            >
+              Upload Documents
+            </Link>
+            <Link
+              href={`/portal/${token}/status`}
+              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent text-gray-500 hover:text-gray-700"
+            >
+              Application Status
+            </Link>
+          </nav>
         </div>
       </header>
 
