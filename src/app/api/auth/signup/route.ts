@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { authLimiter } from "@/lib/rate-limit";
 import type { ApiResponse } from "@/types";
 
 const signupSchema = z
@@ -48,6 +49,14 @@ type SignupResult = { userId: string; bankId: string };
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse<SignupResult>>> {
+  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (!authLimiter(ip)) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

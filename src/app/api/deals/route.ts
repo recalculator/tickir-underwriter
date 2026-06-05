@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { apiLimiter } from "@/lib/rate-limit";
+import { sanitizeString } from "@/lib/sanitize";
 import {
   DEAL_STAGES,
   DOC_TYPES_BY_LOAN_TYPE,
@@ -36,6 +38,14 @@ function getDaysInStage(deal: Deal): number {
 export async function GET(
   req: NextRequest
 ): Promise<NextResponse<PaginatedResponse<DealListItem> | ApiResponse<null>>> {
+  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (!apiLimiter(ip)) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json(
@@ -111,6 +121,14 @@ export async function GET(
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse<Deal>>> {
+  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (!apiLimiter(ip)) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json(
@@ -138,13 +156,14 @@ export async function POST(
   }
 
   const {
-    borrowerName,
     borrowerEmail,
     borrowerPhone,
     loanType,
     loanAmount,
-    internalName,
   } = parsed.data;
+
+  const borrowerName = sanitizeString(parsed.data.borrowerName);
+  const internalName = sanitizeString(parsed.data.internalName);
 
   const docTypes = DOC_TYPES_BY_LOAN_TYPE[loanType];
   const checklistItems = docTypes.map((docType) => ({

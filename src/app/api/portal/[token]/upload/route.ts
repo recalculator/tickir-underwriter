@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { buildS3Key, uploadFile, hasS3Config } from "@/lib/s3";
 import { validateDocument } from "@/lib/validation";
 import { runConsistencyCheck } from "@/lib/consistency-check";
+import { portalUploadLimiter } from "@/lib/rate-limit";
+import { sanitizeFilename } from "@/lib/sanitize";
 import type { ApiResponse } from "@/types";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -26,6 +28,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ): Promise<NextResponse<ApiResponse<UploadResult>>> {
+  const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (!portalUploadLimiter(ip)) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Too many uploads. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const { token } = await params;
   const record = await getTokenRecord(token);
 
@@ -86,7 +96,7 @@ export async function POST(
       bankId: deal.bankId,
       docType,
       s3Key,
-      originalFilename: file.name,
+      originalFilename: sanitizeFilename(file.name),
       fileSize: file.size,
       status: "PENDING",
       aiNotes: aiNotesPrefix,
