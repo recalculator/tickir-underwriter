@@ -99,10 +99,12 @@ export function DealTabs({ deal }: Props) {
   const [portalCopied, setPortalCopied] = useState(false);
   const [showPortalModal, setShowPortalModal] = useState(false);
   const [smtpConfigured, setSmtpConfigured] = useState<boolean | null>(null);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   async function handleSendPortalLink() {
     setPortalLoading(true);
     setPortalCopied(false);
+    setPortalError(null);
     try {
       const res = await fetch(`/api/deals/${deal.id}/portal-link`, { method: "POST" });
       const data = await res.json();
@@ -111,9 +113,11 @@ export function DealTabs({ deal }: Props) {
         setPortalUrl(url);
         setSmtpConfigured(data.data?.smtpConfigured ?? false);
         setShowPortalModal(true);
+      } else {
+        setPortalError(data.error ?? "Failed to send portal link. Please try again.");
       }
     } catch {
-      // network error
+      setPortalError("Network error. Please check your connection and try again.");
     } finally {
       setPortalLoading(false);
     }
@@ -311,6 +315,11 @@ export function DealTabs({ deal }: Props) {
                   {portalLoading ? "Generating…" : "Send Portal Link"}
                 </button>
               </div>
+              {portalError && (
+                <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--s-dec)", textAlign: "right" }}>
+                  {portalError}
+                </p>
+              )}
 
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                 {deal.documentChecklist.map((item) => {

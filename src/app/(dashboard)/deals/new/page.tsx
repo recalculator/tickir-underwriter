@@ -34,8 +34,9 @@ const labelStyle: React.CSSProperties = {
 
 export default function NewDealPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<"deal" | "email" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [emailResult, setEmailResult] = useState<"sent" | "failed" | null>(null);
 
   const [form, setForm] = useState({
     borrowerName: "",
@@ -53,7 +54,8 @@ export default function NewDealPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setEmailResult(null);
+    setLoadingStep("deal");
 
     try {
       const res = await fetch("/api/deals", {
@@ -69,16 +71,31 @@ export default function NewDealPage() {
 
       if (!res.ok || !json.success) {
         setError(json.error ?? "Failed to create deal");
+        setLoadingStep(null);
         return;
       }
 
-      router.push("/dashboard");
+      const dealId: string = json.data.id;
+
+      setLoadingStep("email");
+
+      try {
+        const portalRes = await fetch(`/api/deals/${dealId}/portal-link`, { method: "POST" });
+        const portalJson = await portalRes.json();
+        setEmailResult(portalJson.success ? "sent" : "failed");
+      } catch {
+        setEmailResult("failed");
+      }
+
+      setLoadingStep(null);
+      setTimeout(() => router.push("/dashboard"), 2500);
     } catch {
       setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      setLoadingStep(null);
     }
   }
+
+  const loading = loadingStep !== null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -98,6 +115,38 @@ export default function NewDealPage() {
           border: "1px solid color-mix(in srgb, var(--s-dec) 30%, transparent)",
         }}>
           {error}
+        </div>
+      )}
+
+      {emailResult === "sent" && (
+        <div style={{
+          marginBottom: 16,
+          borderRadius: "var(--r-md)",
+          padding: "10px 14px",
+          fontSize: 13,
+          color: "var(--accent)",
+          background: "var(--accent-glow)",
+          border: "1px solid var(--accent-deep)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Deal created! Portal link emailed to <strong>{form.borrowerEmail}</strong>. Redirecting to pipeline…
+        </div>
+      )}
+
+      {emailResult === "failed" && (
+        <div style={{
+          marginBottom: 16,
+          borderRadius: "var(--r-md)",
+          padding: "10px 14px",
+          fontSize: 13,
+          color: "var(--s-spr)",
+          background: "color-mix(in oklch, var(--s-spr) 10%, transparent)",
+          border: "1px solid color-mix(in oklch, var(--s-spr) 28%, transparent)",
+        }}>
+          Deal created, but the portal email failed to send. You can send it manually from the deal page. Redirecting…
         </div>
       )}
 
@@ -260,7 +309,7 @@ export default function NewDealPage() {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {loading ? "Creating…" : "Create Deal"}
+            {loadingStep === "deal" ? "Creating deal…" : loadingStep === "email" ? "Sending email…" : "Create Deal"}
           </button>
         </div>
       </form>

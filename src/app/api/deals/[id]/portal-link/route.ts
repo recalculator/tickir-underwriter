@@ -37,8 +37,23 @@ export async function POST(
   }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const portalUrl = `${baseUrl}/portal/${rawToken}`;
 
+  const emailSent = await sendEmail({
+    to: deal.borrowerEmail,
+    subject: `Document upload link for your loan application`,
+    html: `<p>Hello ${deal.borrowerName},</p><p>Please use the link below to upload your documents:</p><p><a href="${portalUrl}">${portalUrl}</a></p><p>This link expires in ${TOKEN_EXPIRY_DAYS} days.</p>`,
+  });
+
+  if (!emailSent) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Failed to send email to borrower. Check your SMTP configuration and try again." },
+      { status: 500 }
+    );
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + TOKEN_EXPIRY_DAYS);
 
@@ -46,16 +61,5 @@ export async function POST(
     data: { dealId, tokenHash, expiresAt },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const portalUrl = `${baseUrl}/portal/${rawToken}`;
-
-  const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
-
-  await sendEmail({
-    to: deal.borrowerEmail,
-    subject: `Document upload link for your loan application`,
-    html: `<p>Hello ${deal.borrowerName},</p><p>Please use the link below to upload your documents:</p><p><a href="${portalUrl}">${portalUrl}</a></p><p>This link expires in ${TOKEN_EXPIRY_DAYS} days.</p>`,
-  });
-
-  return NextResponse.json({ success: true, data: { portalUrl, smtpConfigured }, error: null });
+  return NextResponse.json({ success: true, data: { portalUrl, smtpConfigured: true }, error: null });
 }

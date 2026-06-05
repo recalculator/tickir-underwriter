@@ -16,17 +16,21 @@ export type DealWithRelations = Deal & {
   }[];
 };
 
-export type DealListItem = Pick<
-  Deal,
-  | "id"
-  | "borrowerName"
-  | "loanType"
-  | "loanAmount"
-  | "stage"
-  | "createdAt"
-  | "updatedAt"
-  | "internalName"
+export type DealListItem = Omit<
+  Pick<
+    Deal,
+    | "id"
+    | "borrowerName"
+    | "loanType"
+    | "loanAmount"
+    | "stage"
+    | "createdAt"
+    | "updatedAt"
+    | "internalName"
+  >,
+  "loanAmount"
 > & {
+  loanAmount: number;
   documentsUploaded: number;
   documentsRequired: number;
   lastActivityAt: Date | null;

@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { StagesBadge } from "@/components/dashboard/StagesBadge";
 import { LOAN_TYPE_LABELS, DEAL_STAGES, DEAL_STAGE_LABELS } from "@/lib/constants";
 import { DealTabs } from "@/components/dashboard/DealTabs";
-import { SendPortalLinkButton } from "@/components/dashboard/SendPortalLinkButton";
 import type { DealStageType } from "@/types";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -141,7 +140,6 @@ export default async function DealDetailPage({ params }: PageProps) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <SendPortalLinkButton dealId={id} />
             {!isTerminal && nextStage && (
               <AdvanceStageButton
                 dealId={id}
