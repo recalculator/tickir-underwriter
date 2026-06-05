@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  BANKER
+  ANALYST
+  ADMIN
+  CREDIT_OFFICER
+}
+
+enum DealStage {
+  DOCUMENT_COLLECTION
+  SPREADING
+  CREDIT_REVIEW
+  CREDIT_COMMITTEE
+  CLOSED
+  DECLINED
+}
+
+enum DocumentStatus {
+  PENDING
+  VALIDATING
+  VALID
+  INVALID
+}
+
+enum ConfidenceTier {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum RecipientType {
+  BANKER
+  ANALYST
+  BORROWER
+}
+
+model Bank {
+  id           String   @id @default(cuid())
+  name         String
+  subdomain    String   @unique
+  logoUrl      String?
+  primaryColor String   @default("#2563eb")
+  settingsJson Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  users              User[]
+  deals              Deal[]
+  spreadTemplates    SpreadTemplate[]
+
+  @@index([subdomain])
+}
+
+model User {
+  id             String   @id @default(cuid())
+  bankId         String
+  email          String
+  name           String
+  role           UserRole
+  hashedPassword String
+  createdAt      DateTime @default(now())
+
+  bank          Bank          @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  deals         Deal[]        @relation("BankerDeals")
+  spreadCells   SpreadCell[]  @relation("CorrectedBy")
+  lockedSpreads Spread[]      @relation("LockedBy")
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+
+  @@unique([bankId, email])
+  @@index([bankId])
+  @@index([email])
+}
+
+model Deal {
+  id             String    @id @default(cuid())
+  bankId         String
+  bankerId       String
+  borrowerName   String
+  borrowerEmail  String
+  borrowerPhone  String?
+  loanType       String
+  loanAmount     Decimal   @db.Decimal(15, 2)
+  internalName   String
+  stage          DealStage @default(DOCUMENT_COLLECTION)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bank              Bank                @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  banker            User                @relation("BankerDeals", fields: [bankerId], references: [id])
+  borrowerTokens    BorrowerToken[]
+  documents         Document[]
+  documentChecklist DocumentChecklist[]
+  spreads           Spread[]
+  activityLogs      ActivityLog[]
+  notifications     Notification[]
+
+  @@index([bankId])
+  @@index([bankerId])
+  @@index([stage])
+  @@index([bankId, stage])
+}
+
+model BorrowerToken {
+  id        String    @id @default(cuid())
+  dealId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([tokenHash])
+}
+
+model Document {
+  id               String         @id @default(cuid())
+  dealId           String
+  bankId           String
+  docType          String
+  s3Key            String
+  originalFilename String
+  fileSize         Int
+  status           DocumentStatus @default(PENDING)
+  aiNotes          String?
+  validatedAt      DateTime?
+  createdAt        DateTime       @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([bankId])
+  @@index([dealId, docType])
+}
+
+model DocumentChecklist {
+  id          String   @id @default(cuid())
+  dealId      String
+  bankId      String
+  docType     String
+  label       String
+  description String?
+  required    Boolean  @default(true)
+  uploaded    Boolean  @default(false)
+  validated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([bankId])
+}
+
+model SpreadTemplate {
+  id        String   @id @default(cuid())
+  bankId    String
+  name      String
+  cellsJson Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  bank    Bank     @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  spreads Spread[]
+
+  @@index([bankId])
+}
+
+model Spread {
+  id             String    @id @default(cuid())
+  dealId         String
+  bankId         String
+  templateId     String
+  lockedAt       DateTime?
+  lockedByUserId String?
+  createdAt      DateTime  @default(now())
+
+  deal       Deal           @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  template   SpreadTemplate @relation(fields: [templateId], references: [id])
+  lockedBy   User?          @relation("LockedBy", fields: [lockedByUserId], references: [id])
+  spreadCells SpreadCell[]
+
+  @@index([dealId])
+  @@index([bankId])
+}
+
+model SpreadCell {
+  id                 String         @id @default(cuid())
+  spreadId           String
+  bankId             String
+  cellRef            String
+  value              String?
+  confidence         Decimal?       @db.Decimal(5, 4)
+  confidenceTier     ConfidenceTier @default(GREEN)
+  sourceDoc          String?
+  sourcePage         Int?
+  sourceLine         Int?
+  formulaExplanation String?
+  flagReason         String?
+  correctedValue     String?
+  correctedByUserId  String?
+  correctedAt        DateTime?
+  createdAt          DateTime       @default(now())
+
+  spread      Spread @relation(fields: [spreadId], references: [id], onDelete: Cascade)
+  correctedBy User?  @relation("CorrectedBy", fields: [correctedByUserId], references: [id])
+
+  @@unique([spreadId, cellRef])
+  @@index([spreadId])
+  @@index([bankId])
+}
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  dealId       String
+  bankId       String
+  userId       String
+  actionType   String
+  metadataJson Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([dealId])
+  @@index([bankId])
+  @@index([userId])
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  bankId        String
+  recipientType RecipientType
+  recipientId   String
+  dealId        String
+  channel       NotificationChannel
+  template      String
+  read          Boolean             @default(false)
+  sentAt        DateTime?
+  createdAt     DateTime            @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [recipientId], references: [id])
+
+  @@index([dealId])
+  @@index([bankId])
+  @@index([recipientId])
+  @@index([read])
+}
