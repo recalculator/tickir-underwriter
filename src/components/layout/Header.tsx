@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type NotificationItem = {
@@ -9,6 +10,7 @@ type NotificationItem = {
   template: string;
   read: boolean;
   createdAt: string;
+  dealId: string | null;
   deal: { internalName: string; borrowerName: string } | null;
 };
 
@@ -35,6 +37,7 @@ function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   async function fetchNotifications() {
     try {
@@ -75,6 +78,23 @@ function NotificationBell() {
     }
   }
 
+  async function handleNotificationClick(n: NotificationItem) {
+    setOpen(false);
+    if (!n.read) {
+      try {
+        await fetch(`/api/notifications/${n.id}/read`, { method: "PATCH" });
+        setNotifications((prev) =>
+          prev.map((item) => (item.id === n.id ? { ...item, read: true } : item))
+        );
+      } catch {
+        // silently fail
+      }
+    }
+    if (n.dealId) {
+      router.push(`/deals/${n.dealId}`);
+    }
+  }
+
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
@@ -101,7 +121,11 @@ function NotificationBell() {
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-gray-50">
               {notifications.map((n) => (
-                <li key={n.id} className={`px-4 py-3 text-sm ${n.read ? "text-gray-500" : "text-gray-900"}`}>
+                <li
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  className={`cursor-pointer px-4 py-3 text-sm hover:bg-gray-50 ${n.read ? "text-gray-500" : "font-medium text-gray-900"}`}
+                >
                   <p>{n.template}</p>
                   {n.deal && (
                     <p className="mt-0.5 text-xs text-gray-400">{n.deal.borrowerName}</p>

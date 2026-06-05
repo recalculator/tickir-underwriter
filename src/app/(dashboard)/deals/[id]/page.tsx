@@ -136,6 +136,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         deal={{
           id: deal.id,
           internalName: deal.internalName,
+          borrowerEmail: deal.borrowerEmail,
           documentChecklist: deal.documentChecklist,
           documents: deal.documents.map((d) => ({
             id: d.id,

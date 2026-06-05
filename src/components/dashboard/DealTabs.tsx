@@ -46,6 +46,7 @@ type SpreadSummary = {
 type DealData = {
   id: string;
   internalName: string;
+  borrowerEmail: string;
   documentChecklist: ChecklistItem[];
   documents: DocumentItem[];
   activityLogs: ActivityItem[];
@@ -96,6 +97,8 @@ export function DealTabs({ deal }: Props) {
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalCopied, setPortalCopied] = useState(false);
+  const [showPortalModal, setShowPortalModal] = useState(false);
+  const [smtpConfigured, setSmtpConfigured] = useState<boolean | null>(null);
 
   async function handleSendPortalLink() {
     setPortalLoading(true);
@@ -106,16 +109,21 @@ export function DealTabs({ deal }: Props) {
       if (data.success) {
         const url = data.data?.portalUrl ?? data.data?.url ?? "";
         setPortalUrl(url);
-        if (url) {
-          await navigator.clipboard.writeText(url).catch(() => null);
-          setPortalCopied(true);
-        }
+        setSmtpConfigured(data.data?.smtpConfigured ?? false);
+        setShowPortalModal(true);
       }
     } catch {
       // network error
     } finally {
       setPortalLoading(false);
     }
+  }
+
+  async function handleCopyLink() {
+    if (!portalUrl) return;
+    await navigator.clipboard.writeText(portalUrl).catch(() => null);
+    setPortalCopied(true);
+    setTimeout(() => setPortalCopied(false), 2000);
   }
 
   const tabs = [
@@ -125,6 +133,61 @@ export function DealTabs({ deal }: Props) {
   ];
 
   return (
+    <>
+    {showPortalModal && portalUrl && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+          <h3 className="text-base font-semibold text-gray-900">Portal Link Ready</h3>
+
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-medium text-gray-500">Portal URL</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={portalUrl}
+                className="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none"
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {portalCopied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-md bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
+            {smtpConfigured ? (
+              <span className="flex items-center gap-1.5">
+                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Email sent to{" "}
+                <span className="font-medium">{deal.borrowerEmail}</span>
+              </span>
+            ) : (
+              <span>
+                Copy this link and send it to your borrower manually at{" "}
+                <span className="font-medium">{deal.borrowerEmail}</span>.
+              </span>
+            )}
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowPortalModal(false)}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-200 px-6">
         <nav className="-mb-px flex gap-6">
@@ -157,17 +220,6 @@ export function DealTabs({ deal }: Props) {
                 {portalLoading ? "Generating…" : "Send Portal Link"}
               </button>
             </div>
-
-            {portalUrl && (
-              <div className="rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                {portalCopied && (
-                  <span className="mr-2 rounded bg-blue-200 px-1.5 py-0.5 text-xs font-semibold">
-                    Copied!
-                  </span>
-                )}
-                <span className="break-all font-mono">{portalUrl}</span>
-              </div>
-            )}
 
             <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
               {deal.documentChecklist.map((item) => {
@@ -277,5 +329,7 @@ export function DealTabs({ deal }: Props) {
         )}
       </div>
     </div>
+    </>
   );
 }
+

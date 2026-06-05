@@ -3,11 +3,12 @@ import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
 import type { ApiResponse } from "@/types";
 
 const TOKEN_EXPIRY_DAYS = 14;
 
-type PortalLinkResult = { portalUrl: string };
+type PortalLinkResult = { portalUrl: string; smtpConfigured: boolean };
 
 export async function POST(
   req: NextRequest,
@@ -48,23 +49,13 @@ export async function POST(
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const portalUrl = `${baseUrl}/portal/${rawToken}`;
 
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (resendApiKey) {
-    try {
-      const { Resend } = await import("resend");
-      const resend = new Resend(resendApiKey);
-      await resend.emails.send({
-        from: `LendFlow <noreply@${deal.bank.subdomain}.lendflow.app>`,
-        to: deal.borrowerEmail,
-        subject: `Document upload link for your loan application`,
-        html: `<p>Hello ${deal.borrowerName},</p><p>Please use the link below to upload your documents:</p><p><a href="${portalUrl}">${portalUrl}</a></p><p>This link expires in ${TOKEN_EXPIRY_DAYS} days.</p>`,
-      });
-    } catch (err) {
-      console.error("Failed to send portal email:", err);
-    }
-  } else {
-    console.warn(`[portal-link] No RESEND_API_KEY set. Portal URL: ${portalUrl}`);
-  }
+  const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 
-  return NextResponse.json({ success: true, data: { portalUrl }, error: null });
+  await sendEmail({
+    to: deal.borrowerEmail,
+    subject: `Document upload link for your loan application`,
+    html: `<p>Hello ${deal.borrowerName},</p><p>Please use the link below to upload your documents:</p><p><a href="${portalUrl}">${portalUrl}</a></p><p>This link expires in ${TOKEN_EXPIRY_DAYS} days.</p>`,
+  });
+
+  return NextResponse.json({ success: true, data: { portalUrl, smtpConfigured }, error: null });
 }
