@@ -21,6 +21,7 @@ type Props = {
   cell: SpreadCellData;
   dealId: string;
   locked: boolean;
+  label?: string;
   onSave: (cellRef: string, value: string) => void;
 };
 
@@ -42,7 +43,7 @@ const tierBadgeStyle: Record<string, React.CSSProperties> = {
   },
 };
 
-export function CellPanel({ cell, dealId, locked, onSave }: Props) {
+export function CellPanel({ cell, dealId, locked, label, onSave }: Props) {
   const [editValue, setEditValue] = useState(cell.correctedValue ?? cell.value ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -79,7 +80,12 @@ export function CellPanel({ cell, dealId, locked, onSave }: Props) {
       gap: 16,
     }}>
       <div className="flex items-center gap-3">
-        <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{cell.cellRef}</span>
+        <div>
+          {label && (
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>{label}</div>
+          )}
+          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>{cell.cellRef}</span>
+        </div>
         <span style={{
           borderRadius: 999,
           padding: "2px 8px",

@@ -99,6 +99,24 @@ export async function validateDocument(documentId: string): Promise<void> {
       messageContent = `You are reviewing a document uploaded for a commercial loan application. The expected document type is: ${document.docType}. Here is the document content (first portion):\n\n${textContent}\n\nReturn ONLY a JSON object: { "doc_type_match": boolean, "quality_ok": boolean, "issues": string[], "confidence": number, "borrower_message": string | null }. The borrower_message should be null if the document is acceptable, or a clear plain-English message if there's an issue.`;
     }
 
+    // Extract and cache text from PDFs at validation time
+    let extractedText: string | null = null;
+    if (!isImage) {
+      const isPdf = document.originalFilename.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        try {
+          const { PDFParse } = await import("pdf-parse");
+          const parser = new PDFParse({ data: new Uint8Array(fileBytes) });
+          const pdfData = await parser.getText();
+          extractedText = pdfData.text.slice(0, 15000);
+        } catch {
+          // non-fatal — spreading will re-extract if needed
+        }
+      } else {
+        extractedText = fileBytes.toString("utf-8").slice(0, 15000);
+      }
+    }
+
     const response = await anthropic.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 512,
@@ -124,6 +142,7 @@ export async function validateDocument(documentId: string): Promise<void> {
       data: {
         status: isValid ? "VALID" : "INVALID",
         aiNotes: result.borrower_message,
+        extractedText: extractedText ?? undefined,
         validatedAt: new Date(),
       },
     });

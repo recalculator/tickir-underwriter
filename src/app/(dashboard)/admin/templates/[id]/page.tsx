@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TemplateMappingEditor } from "@/components/admin/TemplateMappingEditor";
+import { CellMappingEditor } from "@/components/admin/CellMappingEditor";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -18,12 +18,12 @@ export default async function TemplateMappingPage({ params }: PageProps) {
   if (!template) notFound();
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-6">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</h1>
-        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>Edit cell mapping JSON</p>
+        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>Manage cell mappings for this spreading template</p>
       </div>
-      <TemplateMappingEditor
+      <CellMappingEditor
         templateId={template.id}
         initialCellsJson={JSON.stringify(template.cellsJson, null, 2)}
       />

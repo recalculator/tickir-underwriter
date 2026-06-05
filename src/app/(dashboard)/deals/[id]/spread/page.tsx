@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SpreadGrid } from "@/components/spread/SpreadGrid";
+import { SpreadGrid, type CellDefMeta } from "@/components/spread/SpreadGrid";
 import type { SpreadCellData } from "@/components/spread/CellPanel";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -21,20 +21,22 @@ export default async function SpreadPage({ params }: PageProps) {
 
   if (!deal) notFound();
 
-  const spread = await prisma.spread.findFirst({
-    where: { dealId: id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      spreadCells: true,
-      lockedBy: { select: { name: true } },
-    },
-  });
-
-  const templates = await prisma.spreadTemplate.findMany({
-    where: { bankId: session.user.bankId },
-    select: { id: true, name: true },
-    take: 10,
-  });
+  const [spread, templates] = await Promise.all([
+    prisma.spread.findFirst({
+      where: { dealId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        spreadCells: true,
+        lockedBy: { select: { name: true } },
+        template: { select: { cellsJson: true } },
+      },
+    }),
+    prisma.spreadTemplate.findMany({
+      where: { bankId: session.user.bankId },
+      select: { id: true, name: true },
+      take: 10,
+    }),
+  ]);
 
   const cells: SpreadCellData[] = (spread?.spreadCells ?? []).map((c) => ({
     id: c.id,
@@ -53,6 +55,7 @@ export default async function SpreadPage({ params }: PageProps) {
 
   const locked = Boolean(spread?.lockedAt);
   const hasCells = cells.length > 0;
+  const cellDefs = (spread?.template?.cellsJson ?? {}) as Record<string, CellDefMeta>;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -161,7 +164,7 @@ export default async function SpreadPage({ params }: PageProps) {
         </div>
       )}
 
-      {spread && <SpreadGrid cells={cells} dealId={id} locked={locked} />}
+      {spread && <SpreadGrid cells={cells} dealId={id} locked={locked} cellDefs={cellDefs} />}
     </div>
   );
 }

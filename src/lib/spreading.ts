@@ -1,5 +1,8 @@
+import fs from "fs/promises";
+import path from "path";
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
+import { downloadFile, hasS3Config } from "@/lib/s3";
 
 type CellDef = {
   cell_type?: string;
@@ -22,6 +25,14 @@ type ExtractionResult = {
   flag_reason: string | null;
 };
 
+type DocumentRecord = {
+  id: string;
+  s3Key: string;
+  originalFilename: string;
+  docType: string;
+  extractedText?: string | null;
+};
+
 function confidenceTier(confidence: number): "GREEN" | "YELLOW" | "RED" {
   if (confidence >= 0.9) return "GREEN";
   if (confidence >= 0.7) return "YELLOW";
@@ -30,6 +41,90 @@ function confidenceTier(confidence: number): "GREEN" | "YELLOW" | "RED" {
 
 function hasAnthropicKey(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+function isImageFilename(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+}
+
+function isPdfFilename(filename: string): boolean {
+  return filename.toLowerCase().endsWith(".pdf");
+}
+
+function mediaTypeFromFilename(filename: string): "image/jpeg" | "image/png" {
+  return filename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+}
+
+async function readFileBytes(s3Key: string): Promise<Buffer> {
+  if (hasS3Config()) {
+    return downloadFile(s3Key);
+  }
+  const localPath = path.join(process.cwd(), ".local-uploads", s3Key);
+  return fs.readFile(localPath);
+}
+
+export async function extractDocumentText(document: {
+  s3Key: string;
+  originalFilename: string;
+  docType: string;
+}): Promise<string> {
+  try {
+    if (isImageFilename(document.originalFilename)) {
+      return `[Image document: ${document.docType}. File: ${document.originalFilename}]`;
+    }
+
+    const buffer = await readFileBytes(document.s3Key);
+
+    if (isPdfFilename(document.originalFilename)) {
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: new Uint8Array(buffer) });
+      const data = await parser.getText();
+      return data.text.slice(0, 15000);
+    }
+
+    // For other text-like files, decode as UTF-8
+    return buffer.toString("utf-8").slice(0, 15000);
+  } catch {
+    return "(could not extract text from document)";
+  }
+}
+
+function yearLabel(yearOffset: number | undefined): string {
+  if (yearOffset === 0 || yearOffset === undefined) return "Most recent fiscal year";
+  if (yearOffset === -1) return "Prior year (1 year ago)";
+  if (yearOffset === -2) return "2 years ago";
+  return `Year offset ${yearOffset}`;
+}
+
+function buildTextPrompt(cell: CellDef, cellRef: string, extractedText: string): string {
+  return `You are a commercial loan underwriter extracting a specific financial figure.
+
+FIELD: ${cell.label ?? cellRef} (cell ${cellRef})
+DOCUMENT TYPE: ${cell.source_doc_type ?? "any"}
+SECTION/FORM: ${cell.source_form ?? "any"}
+EXACT LINE ITEM: ${cell.source_line_item ?? "any"}
+YEAR: ${yearLabel(cell.year_offset)}
+SPECIAL INSTRUCTIONS: ${cell.extraction_instructions ?? "none"}
+
+DOCUMENT TEXT:
+${extractedText}
+
+Find the exact dollar amount for "${cell.source_line_item ?? cell.label ?? cellRef}".
+- If found directly: return high confidence (0.90+)
+- If calculated from related lines: return medium confidence (0.70-0.89) and explain the calculation
+- If not found: return null value with confidence 0 and explain why
+
+Return ONLY this JSON (no other text):
+{
+  "value": <number in dollars, no commas, or null>,
+  "confidence": <0.0 to 1.0>,
+  "source_doc": "<filename or doc type>",
+  "source_page": <page number or null>,
+  "source_line": "<exact label as it appears in the document>",
+  "formula_explanation": "<step-by-step if calculated, empty string if direct>",
+  "flag_reason": "<null if confident, or explanation of uncertainty>"
+}`;
 }
 
 export async function runSpreading(dealId: string, templateId: string): Promise<string> {
@@ -56,7 +151,6 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
   );
 
   if (!hasAnthropicKey()) {
-    // No AI key — create placeholder GREEN cells so UI renders something useful
     await Promise.all(
       cellEntries.map(([cellRef, cell]) =>
         prisma.spreadCell.create({
@@ -78,29 +172,94 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
     return spread.id;
   }
 
+  // Pre-cache extracted text for each document
+  const docTextCache = new Map<string, string>();
+
+  for (const doc of documents as DocumentRecord[]) {
+    if (doc.extractedText) {
+      docTextCache.set(doc.id, doc.extractedText);
+      continue;
+    }
+
+    if (!isImageFilename(doc.originalFilename)) {
+      const extracted = await extractDocumentText(doc);
+      docTextCache.set(doc.id, extracted);
+      // Cache in DB for future runs
+      await prisma.document.update({
+        where: { id: doc.id },
+        data: { extractedText: extracted },
+      });
+    }
+  }
+
   for (const [cellRef, cell] of cellEntries) {
-    const matchingDoc = documents.find(
+    const matchingDoc = (documents as DocumentRecord[]).find(
       (d) => !cell.source_doc_type || d.docType === cell.source_doc_type
     );
 
-    const docText = matchingDoc?.aiNotes ?? "(no document text available)";
-
-    const prompt = `You are a commercial loan underwriter extracting financial data.
-CELL TO FILL: ${cell.label ?? cellRef} (${cellRef})
-SOURCE DOCUMENT TYPE: ${cell.source_doc_type ?? "any"}
-SPECIFIC FORM/SECTION: ${cell.source_form ?? "any"}
-LINE ITEM: ${cell.source_line_item ?? "any"}
-YEAR REQUIRED: ${cell.year_offset ?? 0} (0=current, -1=prior year)
-ADDITIONAL INSTRUCTIONS: ${cell.extraction_instructions ?? "none"}
-DOCUMENT TEXT: ${docText}
-Return ONLY JSON: { "value": number | null, "confidence": number, "source_doc": string, "source_page": number | null, "source_line": string, "formula_explanation": string, "flag_reason": string | null }`;
-
     try {
-      const response = await anthropic.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
-      });
+      let response;
+
+      if (!matchingDoc) {
+        const noDocPrompt = buildTextPrompt(cell, cellRef, "(no matching document uploaded)");
+        response = await anthropic.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 512,
+          messages: [{ role: "user", content: noDocPrompt }],
+        });
+      } else if (isImageFilename(matchingDoc.originalFilename)) {
+        // Pass image as vision message
+        const buffer = await readFileBytes(matchingDoc.s3Key);
+        const base64 = buffer.toString("base64");
+        const mediaType = mediaTypeFromFilename(matchingDoc.originalFilename);
+
+        response = await anthropic.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 512,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: mediaType, data: base64 },
+                },
+                {
+                  type: "text",
+                  text: `You are a commercial loan underwriter extracting a specific financial figure from this document image.
+
+FIELD: ${cell.label ?? cellRef} (cell ${cellRef})
+DOCUMENT TYPE: ${cell.source_doc_type ?? "any"}
+SECTION/FORM: ${cell.source_form ?? "any"}
+EXACT LINE ITEM: ${cell.source_line_item ?? "any"}
+YEAR: ${yearLabel(cell.year_offset)}
+SPECIAL INSTRUCTIONS: ${cell.extraction_instructions ?? "none"}
+
+Find the exact dollar amount for "${cell.source_line_item ?? cell.label ?? cellRef}".
+Return ONLY this JSON (no other text):
+{
+  "value": <number in dollars, no commas, or null>,
+  "confidence": <0.0 to 1.0>,
+  "source_doc": "<filename or doc type>",
+  "source_page": <page number or null>,
+  "source_line": "<exact label as it appears in the document>",
+  "formula_explanation": "<step-by-step if calculated, empty string if direct>",
+  "flag_reason": "<null if confident, or explanation of uncertainty>"
+}`,
+                },
+              ],
+            },
+          ],
+        });
+      } else {
+        const docText = docTextCache.get(matchingDoc.id) ?? "(no document text available)";
+        const prompt = buildTextPrompt(cell, cellRef, docText);
+        response = await anthropic.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 512,
+          messages: [{ role: "user", content: prompt }],
+        });
+      }
 
       const textBlock = response.content.find((b) => b.type === "text");
       if (!textBlock || textBlock.type !== "text") {

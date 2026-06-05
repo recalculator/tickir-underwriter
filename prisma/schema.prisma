@@ -138,6 +138,7 @@ model Document {
   fileSize         Int
   status           DocumentStatus @default(PENDING)
   aiNotes          String?
+  extractedText    String?  @db.Text
   validatedAt      DateTime?
   createdAt        DateTime       @default(now())
 
