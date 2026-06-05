@@ -13,6 +13,14 @@ function getDaysInStage(updatedAt: Date): number {
   );
 }
 
+const SUMMARY_STAGES = [
+  "DOCUMENT_COLLECTION",
+  "SPREADING",
+  "CREDIT_REVIEW",
+  "CREDIT_COMMITTEE",
+  "CLOSED",
+] as const;
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -28,7 +36,7 @@ export default async function DashboardPage() {
   const deals = await prisma.deal.findMany({
     where,
     orderBy: { updatedAt: "desc" },
-    take: 50,
+    take: 100,
     include: {
       documentChecklist: { select: { required: true, uploaded: true } },
       activityLogs: {
@@ -38,6 +46,9 @@ export default async function DashboardPage() {
       },
     },
   });
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const dealItems: DealListItem[] = deals.map((deal) => ({
     id: deal.id,
@@ -54,9 +65,23 @@ export default async function DashboardPage() {
     daysInStage: getDaysInStage(deal.updatedAt),
   }));
 
-  const stageCounts = dealItems.reduce<Record<string, number>>((acc, deal) => {
-    return { ...acc, [deal.stage]: (acc[deal.stage] ?? 0) + 1 };
-  }, {});
+  const stageCounts = dealItems.reduce<Record<string, number>>((acc, d) => ({
+    ...acc,
+    [d.stage]: (acc[d.stage] ?? 0) + 1,
+  }), {});
+
+  const closedThisMonth = deals.filter(
+    (d) => d.stage === "CLOSED" && new Date(d.updatedAt) >= startOfMonth
+  ).length;
+
+  const summaryStats = [
+    { label: "Total Deals", value: deals.length },
+    ...SUMMARY_STAGES.filter((s) => s !== "CLOSED").map((s) => ({
+      label: DEAL_STAGE_LABELS[s],
+      value: stageCounts[s] ?? 0,
+    })),
+    { label: "Closed This Month", value: closedThisMonth },
+  ];
 
   return (
     <div>
@@ -75,28 +100,22 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {deals.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {Object.entries(stageCounts).map(([stage, count]) => (
-            <div
-              key={stage}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center shadow-sm"
-            >
-              <p className="text-xl font-bold text-gray-900">{count}</p>
-              <p className="mt-0.5 text-xs text-gray-500">
-                {DEAL_STAGE_LABELS[stage as keyof typeof DEAL_STAGE_LABELS] ?? stage}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {summaryStats.map(({ label, value }) => (
+          <div
+            key={label}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-center shadow-sm"
+          >
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className="mt-0.5 text-xs text-gray-500">{label}</p>
+          </div>
+        ))}
+      </div>
 
       {deals.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white py-20">
           <p className="text-base font-medium text-gray-900">No deals yet</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Create your first deal to get started.
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Create your first deal to get started.</p>
           <Link
             href="/deals/new"
             className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
