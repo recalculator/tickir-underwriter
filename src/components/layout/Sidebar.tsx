@@ -9,7 +9,6 @@ import {
   BarChart2,
   Link as LinkIcon,
   TableProperties,
-  Settings,
   LogOut,
 } from "lucide-react";
 
@@ -24,10 +23,9 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Pipeline", icon: <LayoutDashboard size={16} />, section: "main" },
   { href: "/deals/new", label: "New Deal", icon: <Plus size={16} />, section: "main" },
-  { href: "/deals", label: "Spreads", icon: <BarChart2 size={16} />, section: "main" },
-  { href: "/admin/templates", label: "Borrower Links", icon: <LinkIcon size={16} />, section: "main", adminOnly: true },
+  { href: "/spreads", label: "Spreads", icon: <BarChart2 size={16} />, section: "main" },
+  { href: "/borrower-links", label: "Borrower Links", icon: <LinkIcon size={16} />, section: "main" },
   { href: "/admin/templates", label: "Templates", icon: <TableProperties size={16} />, section: "admin", adminOnly: true },
-  { href: "/settings", label: "Settings", icon: <Settings size={16} />, section: "admin" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -71,7 +69,7 @@ export function Sidebar() {
   const adminItems = NAV_ITEMS.filter((item) => item.section === "admin" && (!item.adminOnly || isAdmin));
 
   function NavLink({ item }: { item: NavItem }) {
-    const isActive = pathname === item.href || (item.href !== "/deals" && pathname.startsWith(item.href + "/"));
+    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
     return (
       <li>
         <Link
