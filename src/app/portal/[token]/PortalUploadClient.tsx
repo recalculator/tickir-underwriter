@@ -40,11 +40,11 @@ function statusLabel(status: DocStatus): string {
 
 function statusColor(status: DocStatus): string {
   const colors: Record<DocStatus, string> = {
-    EMPTY: "text-gray-400",
-    UPLOADING: "text-blue-500",
-    VALIDATING: "text-yellow-500",
-    VALID: "text-green-600",
-    INVALID: "text-red-600",
+    EMPTY: "var(--ink-4)",
+    UPLOADING: "var(--accent)",
+    VALIDATING: "#d4b94a",
+    VALID: "var(--accent)",
+    INVALID: "#e05a5a",
   };
   return colors[status];
 }
@@ -195,56 +195,62 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
 
   const isProcessing = status === "UPLOADING" || status === "VALIDATING";
 
+  const dragZoneStyle: React.CSSProperties = isProcessing
+    ? { borderColor: "var(--line-2)", color: "var(--ink-4)", opacity: 0.5, cursor: "not-allowed" }
+    : isDragOver
+    ? { borderColor: "var(--accent)", background: "var(--accent-glow)", color: "var(--accent)" }
+    : { borderColor: "var(--line-2)", color: "var(--ink-3)" };
+
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg p-4" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-gray-900">{checklistItem.label}</p>
+            <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>{checklistItem.label}</p>
             {checklistItem.required && (
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+              <span className="rounded px-1.5 py-0.5 text-xs" style={{ background: "var(--panel-hi)", color: "var(--ink-4)", border: "1px solid var(--line)" }}>
                 Required
               </span>
             )}
           </div>
           {checklistItem.description && (
-            <p className="mt-0.5 text-xs text-gray-500">{checklistItem.description}</p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--ink-4)" }}>{checklistItem.description}</p>
           )}
 
           {/* Status row */}
           <div className="mt-1 flex items-center gap-1.5">
             {status === "UPLOADING" && (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
             )}
             {status === "VALIDATING" && (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#d4b94a", borderTopColor: "transparent" }} />
             )}
             {status === "VALID" && (
-              <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="h-4 w-4" style={{ color: "var(--accent)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
             {status === "INVALID" && (
-              <svg className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="h-4 w-4" style={{ color: "#e05a5a" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             )}
-            <p className={`text-xs font-medium ${statusColor(status)}`}>
+            <p className="text-xs font-medium" style={{ color: statusColor(status) }}>
               {statusLabel(status)}
             </p>
           </div>
 
           {/* File preview */}
           {fileInfo && status !== "EMPTY" && (
-            <p className="mt-1 text-xs text-gray-400 truncate">
+            <p className="mt-1 text-xs truncate" style={{ color: "var(--ink-4)" }}>
               {fileInfo.name} &middot; {fileInfo.sizeLabel}
             </p>
           )}
 
-          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+          {error && <p className="mt-1 text-xs" style={{ color: "#e05a5a" }}>{error}</p>}
 
           {/* Format hint */}
-          <p className="mt-1.5 text-xs text-gray-400">Accepted: PDF, JPG, PNG — Max 50MB</p>
+          <p className="mt-1.5 text-xs" style={{ color: "var(--ink-4)" }}>Accepted: PDF, JPG, PNG — Max 50MB</p>
         </div>
 
         {/* Right column: upload zone + cancel */}
@@ -262,16 +268,12 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => !isProcessing && fileInputRef.current?.click()}
-            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-3 text-xs font-medium transition cursor-pointer select-none ${
-              isProcessing
-                ? "cursor-not-allowed opacity-50 border-gray-200 text-gray-400"
-                : isDragOver
-                ? "border-blue-500 bg-blue-50 text-blue-600"
-                : "border-gray-300 text-gray-600 hover:border-blue-400 hover:bg-gray-50"
-            }`}
+            className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-3 text-xs font-medium transition cursor-pointer select-none"
+            style={dragZoneStyle}
           >
             <svg
-              className="mb-1 h-5 w-5 text-gray-400"
+              className="mb-1 h-5 w-5"
+              style={{ color: "var(--ink-4)" }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -280,14 +282,17 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
             {status === "VALID" ? "Replace" : "Upload"}
-            <span className="text-gray-400">or drag &amp; drop</span>
+            <span style={{ color: "var(--ink-4)" }}>or drag &amp; drop</span>
           </div>
 
           {/* Cancel button — shown while uploading or validating */}
           {isProcessing && (
             <button
               onClick={handleCancel}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
+              className="text-xs underline underline-offset-2 transition-colors"
+              style={{ color: "var(--ink-4)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#e05a5a"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink-4)"; }}
             >
               Cancel
             </button>

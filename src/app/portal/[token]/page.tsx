@@ -1,5 +1,6 @@
 import { validateToken } from "./validate-token";
 import { PortalUploadClient } from "./PortalUploadClient";
+import { TickrLogo } from "@/components/TickrLogo";
 import Link from "next/link";
 
 type Props = {
@@ -12,10 +13,10 @@ export default async function PortalPage({ params }: Props) {
 
   if (!record) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg-deep)" }}>
         <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Link Expired</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-2xl font-bold" style={{ color: "var(--ink)" }}>Link Expired</h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>
             This document upload link has expired or is invalid. Please contact your banker to
             request a new link.
           </p>
@@ -33,19 +34,23 @@ export default async function PortalPage({ params }: Props) {
   const loanTypeLabel = deal.loanType.replace(/_/g, " ").toLowerCase();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Colored bank header bar */}
-      <div style={{ backgroundColor: bankColor }} className="py-3 px-6">
-        <div className="mx-auto max-w-3xl flex items-center justify-between">
-          <span className="text-lg font-bold text-white">Tickir AI</span>
-          <span className="text-sm text-white/80">{deal.bank.name}</span>
+    <div className="min-h-screen" style={{ background: "var(--bg-deep)" }}>
+      {/* Top brand header */}
+      <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: "var(--bg-deep)", borderBottom: "1px solid var(--line)", position: "sticky", top: 0, zIndex: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <TickrLogo size={28} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>Tickir AI</div>
+            <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
+          </div>
         </div>
+        <span style={{ fontSize: 13, color: "var(--ink-4)" }}>{deal.bank.name}</span>
       </div>
 
-      <header className="border-b border-gray-200 bg-white px-6 pt-4">
+      <header className="px-6 pt-4" style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}>
         <div className="mx-auto max-w-3xl">
-          <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">{deal.bank.name}</p>
-          <h1 className="mt-0.5 text-xl font-bold text-gray-900">Document Upload Portal</h1>
+          <p className="text-xs uppercase tracking-wider font-medium" style={{ color: "var(--ink-4)" }}>{deal.bank.name}</p>
+          <h1 className="mt-0.5 text-xl font-bold" style={{ color: "var(--ink)" }}>Document Upload Portal</h1>
           <nav className="mt-4 flex gap-0">
             <Link
               href={`/portal/${token}`}
@@ -56,7 +61,8 @@ export default async function PortalPage({ params }: Props) {
             </Link>
             <Link
               href={`/portal/${token}/status`}
-              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent text-gray-500 hover:text-gray-700"
+              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent"
+              style={{ color: "var(--ink-4)" }}
             >
               Application Status
             </Link>
@@ -66,11 +72,11 @@ export default async function PortalPage({ params }: Props) {
 
       <main className="mx-auto max-w-3xl px-4 py-8">
         {/* Welcome banner */}
-        <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
-          <p className="text-base font-semibold text-blue-900">
+        <div className="mb-6 rounded-lg px-5 py-4" style={{ background: "var(--panel)", border: "1px solid var(--line-2)", borderLeft: `3px solid ${bankColor}` }}>
+          <p className="text-base font-semibold" style={{ color: "var(--ink)" }}>
             Welcome, {deal.borrowerName}!
           </p>
-          <p className="mt-1 text-sm text-blue-700">
+          <p className="mt-1 text-sm" style={{ color: "var(--ink-3)" }}>
             Please upload the documents below for your{" "}
             <span className="font-medium capitalize">{loanTypeLabel}</span> loan application.
           </p>
@@ -78,10 +84,11 @@ export default async function PortalPage({ params }: Props) {
 
         {allDone ? (
           /* All-done success screen */
-          <div className="flex flex-col items-center rounded-xl border border-green-200 bg-green-50 py-14 px-8 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+          <div className="flex flex-col items-center rounded-xl py-14 px-8 text-center" style={{ background: "var(--panel)", border: "1px solid var(--line-2)" }}>
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: "var(--accent-glow)" }}>
               <svg
-                className="h-9 w-9 text-green-600"
+                className="h-9 w-9"
+                style={{ color: "var(--accent)" }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -90,8 +97,8 @@ export default async function PortalPage({ params }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-green-900">You&apos;re all done!</h2>
-            <p className="mt-3 max-w-sm text-sm text-green-700">
+            <h2 className="text-2xl font-bold" style={{ color: "var(--ink)" }}>You&apos;re all done!</h2>
+            <p className="mt-3 max-w-sm text-sm" style={{ color: "var(--ink-3)" }}>
               Your documents have been received. Your banker will review them and be in touch
               shortly.
             </p>
@@ -99,41 +106,41 @@ export default async function PortalPage({ params }: Props) {
         ) : (
           <>
             {/* Progress bar */}
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="mb-6 rounded-lg p-4" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
               <div className="mb-2 flex justify-between text-sm font-medium">
-                <span className="text-gray-700">Documents validated</span>
-                <span className="text-gray-900">
+                <span style={{ color: "var(--ink-2)" }}>Documents validated</span>
+                <span style={{ color: "var(--ink)" }}>
                   {validated} of {total}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-2 overflow-hidden rounded-full" style={{ background: "var(--panel-hi)" }}>
                 <div
-                  className="h-2 rounded-full bg-blue-600 transition-all"
-                  style={{ width: total > 0 ? `${Math.round((validated / total) * 100)}%` : "0%" }}
+                  className="h-2 rounded-full transition-all"
+                  style={{ width: total > 0 ? `${Math.round((validated / total) * 100)}%` : "0%", background: "var(--accent)" }}
                 />
               </div>
             </div>
 
             {/* What to expect */}
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <div className="mb-6 rounded-lg p-4" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ink-4)" }}>
                 What to expect
               </p>
-              <ol className="space-y-1.5 text-sm text-gray-700">
+              <ol className="space-y-1.5 text-sm" style={{ color: "var(--ink-2)" }}>
                 <li className="flex items-start gap-2">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--accent-glow)", color: "var(--accent)" }}>
                     1
                   </span>
                   Upload each document below
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--accent-glow)", color: "var(--accent)" }}>
                     2
                   </span>
                   We&apos;ll verify them automatically
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--accent-glow)", color: "var(--accent)" }}>
                     3
                   </span>
                   Your banker will be in touch

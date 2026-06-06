@@ -78,8 +78,8 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
   return (
     <div className="space-y-6">
       {/* Vertical stepper */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wider text-gray-500">
+      <div className="rounded-lg p-6" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--ink-4)" }}>
           Application Progress
         </h2>
         <ol className="space-y-0">
@@ -87,19 +87,20 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
             const state = getStepState(step.number, data.stage, allDocsValidated);
             const isLast = idx === STEPS.length - 1;
 
+            const circleStyle: React.CSSProperties =
+              state === "completed"
+                ? { background: "var(--accent)", color: "var(--accent-ink)" }
+                : state === "current"
+                ? { backgroundColor: bankColor, color: "#fff" }
+                : { background: "var(--panel-hi)", color: "var(--ink-4)", border: "1px solid var(--line-2)" };
+
             return (
               <li key={step.number} className="flex gap-4">
                 {/* Circle + connector */}
                 <div className="flex flex-col items-center">
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      state === "completed"
-                        ? "bg-green-500 text-white"
-                        : state === "current"
-                        ? "text-white"
-                        : "bg-gray-200 text-gray-500"
-                    }`}
-                    style={state === "current" ? { backgroundColor: bankColor } : undefined}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                    style={circleStyle}
                   >
                     {state === "completed" ? (
                       <svg
@@ -112,20 +113,15 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <span
-                        className={
-                          state === "current" ? "animate-pulse" : ""
-                        }
-                      >
+                      <span className={state === "current" ? "animate-pulse" : ""}>
                         {step.number}
                       </span>
                     )}
                   </div>
                   {!isLast && (
                     <div
-                      className={`mt-1 mb-1 w-0.5 flex-1 min-h-[24px] ${
-                        state === "completed" ? "bg-green-300" : "bg-gray-200"
-                      }`}
+                      className="mt-1 mb-1 w-0.5 flex-1 min-h-6"
+                      style={{ background: state === "completed" ? "var(--accent-deep)" : "var(--line-2)" }}
                     />
                   )}
                 </div>
@@ -134,14 +130,14 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
                 <div className={`pb-6 ${isLast ? "pb-0" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-sm font-semibold ${
+                      className="text-sm font-semibold"
+                      style={
                         state === "completed"
-                          ? "text-green-700"
+                          ? { color: "var(--accent)" }
                           : state === "current"
-                          ? "font-bold"
-                          : "text-gray-400"
-                      }`}
-                      style={state === "current" ? { color: bankColor } : undefined}
+                          ? { color: bankColor, fontWeight: 700 }
+                          : { color: "var(--ink-4)" }
+                      }
                     >
                       {step.label}
                     </span>
@@ -159,7 +155,7 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500">{step.description}</p>
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--ink-4)" }}>{step.description}</p>
                 </div>
               </li>
             );
@@ -168,32 +164,32 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
       </div>
 
       {/* Document summary card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+      <div className="rounded-lg p-5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--ink-4)" }}>
           Your Documents
         </h2>
-        <p className="mb-2 text-sm text-gray-700">
+        <p className="mb-2 text-sm" style={{ color: "var(--ink-2)" }}>
           {data.docsSubmitted} of {data.docsRequired} submitted
         </p>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+        <div className="h-2 overflow-hidden rounded-full" style={{ background: "var(--panel-hi)" }}>
           <div
-            className="h-2 rounded-full bg-blue-500 transition-all"
-            style={{ width: `${progressPct}%` }}
+            className="h-2 rounded-full transition-all"
+            style={{ width: `${progressPct}%`, background: "var(--accent)" }}
           />
         </div>
       </div>
 
       {/* Recent activity */}
       {visibleActivity.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <div className="rounded-lg p-5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--ink-4)" }}>
             Recent Activity
           </h2>
           <ul className="space-y-3">
             {visibleActivity.map((entry) => (
               <li key={entry.id} className="flex items-start justify-between gap-4">
-                <span className="text-sm text-gray-700">{entry.label}</span>
-                <span className="shrink-0 text-xs text-gray-400">
+                <span className="text-sm" style={{ color: "var(--ink-2)" }}>{entry.label}</span>
+                <span className="shrink-0 text-xs" style={{ color: "var(--ink-4)" }}>
                   {formatRelativeTime(new Date(entry.createdAt))}
                 </span>
               </li>
@@ -203,7 +199,7 @@ export function StatusRefresher({ token, bankColor, initialData }: Props) {
       )}
 
       {/* Last updated */}
-      <p className="text-center text-xs text-gray-400">
+      <p className="text-center text-xs" style={{ color: "var(--ink-4)" }}>
         Last updated:{" "}
         {secondsAgo === 0
           ? "just now"

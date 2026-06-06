@@ -2,6 +2,7 @@ import Link from "next/link";
 import { validateToken } from "../validate-token";
 import { StatusRefresher } from "./StatusRefresher";
 import { translateActivityType } from "./stage-utils";
+import { TickrLogo } from "@/components/TickrLogo";
 
 type Props = {
   params: Promise<{ token: string }>;
@@ -13,10 +14,10 @@ export default async function StatusPage({ params }: Props) {
 
   if (!record) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg-deep)" }}>
         <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Link Expired</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-2xl font-bold" style={{ color: "var(--ink)" }}>Link Expired</h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--ink-3)" }}>
             This link has expired or is invalid. Please contact your banker to request a new link.
           </p>
         </div>
@@ -49,25 +50,30 @@ export default async function StatusPage({ params }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Colored bank header bar */}
-      <div style={{ backgroundColor: bankColor }} className="py-3 px-6">
-        <div className="mx-auto max-w-3xl flex items-center justify-between">
-          <span className="text-lg font-bold text-white">Tickir AI</span>
-          <span className="text-sm text-white/80">{deal.bank.name}</span>
+    <div className="min-h-screen" style={{ background: "var(--bg-deep)" }}>
+      {/* Top brand header */}
+      <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: "var(--bg-deep)", borderBottom: "1px solid var(--line)", position: "sticky", top: 0, zIndex: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <TickrLogo size={28} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", lineHeight: 1 }}>Tickir AI</div>
+            <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>CREDIT OS</div>
+          </div>
         </div>
+        <span style={{ fontSize: 13, color: "var(--ink-4)" }}>{deal.bank.name}</span>
       </div>
 
-      <header className="border-b border-gray-200 bg-white px-6 pt-4">
+      <header className="px-6 pt-4" style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}>
         <div className="mx-auto max-w-3xl">
-          <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">
+          <p className="text-xs uppercase tracking-wider font-medium" style={{ color: "var(--ink-4)" }}>
             {deal.bank.name}
           </p>
-          <h1 className="mt-0.5 text-xl font-bold text-gray-900">Document Upload Portal</h1>
+          <h1 className="mt-0.5 text-xl font-bold" style={{ color: "var(--ink)" }}>Document Upload Portal</h1>
           <nav className="mt-4 flex gap-0">
             <Link
               href={`/portal/${token}`}
-              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent text-gray-500 hover:text-gray-700"
+              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent"
+              style={{ color: "var(--ink-4)" }}
             >
               Upload Documents
             </Link>
@@ -84,9 +90,9 @@ export default async function StatusPage({ params }: Props) {
 
       <main className="mx-auto max-w-3xl px-4 py-8">
         {/* Welcome banner */}
-        <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
-          <p className="text-base font-semibold text-blue-900">Hi, {deal.borrowerName}!</p>
-          <p className="mt-1 text-sm text-blue-700">
+        <div className="mb-6 rounded-lg px-5 py-4" style={{ background: "var(--panel)", border: "1px solid var(--line-2)", borderLeft: `3px solid ${bankColor}` }}>
+          <p className="text-base font-semibold" style={{ color: "var(--ink)" }}>Hi, {deal.borrowerName}!</p>
+          <p className="mt-1 text-sm" style={{ color: "var(--ink-3)" }}>
             Track where your loan application stands below.
           </p>
         </div>
@@ -98,8 +104,8 @@ export default async function StatusPage({ params }: Props) {
         />
 
         {/* Document checklist detail */}
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <div className="mt-6 rounded-lg p-5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--ink-4)" }}>
             Document Checklist
           </h2>
           <ul className="space-y-2">
@@ -109,23 +115,23 @@ export default async function StatusPage({ params }: Props) {
                 : item.uploaded
                 ? "Submitted"
                 : "Pending";
-              const pillClass = item.validated
-                ? "bg-green-100 text-green-700"
+              const pillStyle: React.CSSProperties = item.validated
+                ? { background: "var(--accent-glow)", color: "var(--accent)" }
                 : item.uploaded
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-500";
+                ? { background: "rgba(107,168,229,0.15)", color: "#6ba8e5" }
+                : { background: "var(--panel-hi)", color: "var(--ink-4)" };
 
               return (
                 <li key={item.id} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-gray-700">{item.label}</span>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${pillClass}`}>
+                  <span className="text-sm" style={{ color: "var(--ink-2)" }}>{item.label}</span>
+                  <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium" style={pillStyle}>
                     {statusLabel}
                   </span>
                 </li>
               );
             })}
           </ul>
-          <div className="mt-4 border-t border-gray-100 pt-3">
+          <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--line)" }}>
             <Link
               href={`/portal/${token}`}
               className="text-sm font-medium"
@@ -137,10 +143,10 @@ export default async function StatusPage({ params }: Props) {
         </div>
 
         {/* Contact card */}
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-1 text-sm font-semibold text-gray-700">Questions? Contact your banker</h2>
-          <p className="text-sm text-gray-600">{deal.banker.name}</p>
-          <p className="text-xs text-gray-400">{deal.bank.name}</p>
+        <div className="mt-6 rounded-lg p-5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
+          <h2 className="mb-1 text-sm font-semibold" style={{ color: "var(--ink-2)" }}>Questions? Contact your banker</h2>
+          <p className="text-sm" style={{ color: "var(--ink-3)" }}>{deal.banker.name}</p>
+          <p className="text-xs" style={{ color: "var(--ink-4)" }}>{deal.bank.name}</p>
         </div>
       </main>
     </div>
