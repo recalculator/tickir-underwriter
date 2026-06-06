@@ -31,9 +31,9 @@ function statusLabel(status: DocStatus): string {
   const labels: Record<DocStatus, string> = {
     EMPTY: "Not uploaded",
     UPLOADING: "Uploading…",
-    VALIDATING: "Validating…",
-    VALID: "Validated",
-    INVALID: "Invalid",
+    VALIDATING: "Checking contents…",
+    VALID: "Verified",
+    INVALID: "Missing information",
   };
   return labels[status];
 }
@@ -62,19 +62,23 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
   const [fileInfo, setFileInfo] = useState<FileInfo>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const cancelPollingRef = useRef(false);
 
   async function pollStatus(docId: string) {
+    cancelPollingRef.current = false;
     const maxAttempts = 30;
     let attempts = 0;
 
     const poll = async () => {
-      if (attempts >= maxAttempts) return;
+      if (cancelPollingRef.current || attempts >= maxAttempts) return;
       attempts++;
 
       try {
         const res = await fetch(`/api/portal/${token}/documents/${docId}/status`);
         const json = await res.json();
 
+        if (cancelPollingRef.current) return;
         if (!res.ok || !json.success) return;
 
         const docStatus: string = json.data.status;
@@ -84,23 +88,52 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
         }
         if (docStatus === "INVALID") {
           setStatus("INVALID");
-          setError(json.data.aiNotes ?? "Document could not be validated. Please re-upload.");
+          setError(json.data.aiNotes ?? "This document is missing required information. Please re-upload.");
           return;
         }
 
         setTimeout(poll, 2000);
       } catch {
-        setTimeout(poll, 2000);
+        if (!cancelPollingRef.current) setTimeout(poll, 2000);
       }
     };
 
     setTimeout(poll, 1500);
   }
 
+  async function handleCancel() {
+    // Abort any in-flight upload
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Stop the polling loop
+    cancelPollingRef.current = true;
+
+    // Delete the document from storage + DB if it was already saved
+    const docIdToDelete = documentId;
+    setDocumentId(null);
+    setFileInfo(null);
+    setError(null);
+    setStatus("EMPTY");
+
+    if (docIdToDelete) {
+      try {
+        await fetch(`/api/portal/${token}/documents/${docIdToDelete}`, { method: "DELETE" });
+      } catch {
+        // Best-effort cleanup; UI is already reset
+      }
+    }
+  }
+
   async function handleFile(file: File) {
     setError(null);
     setFileInfo({ name: file.name, sizeLabel: formatBytes(file.size) });
     setStatus("UPLOADING");
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const formData = new FormData();
@@ -110,7 +143,10 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
       const res = await fetch(`/api/portal/${token}/upload`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+
+      abortControllerRef.current = null;
 
       const json = await res.json();
 
@@ -123,7 +159,12 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
       setDocumentId(json.data.documentId);
       setStatus("VALIDATING");
       await pollStatus(json.data.documentId);
-    } catch {
+    } catch (err) {
+      abortControllerRef.current = null;
+      if (err instanceof Error && err.name === "AbortError") {
+        // User cancelled — state already reset by handleCancel
+        return;
+      }
       setStatus("EMPTY");
       setError("Network error. Please try again.");
     }
@@ -172,6 +213,9 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
 
           {/* Status row */}
           <div className="mt-1 flex items-center gap-1.5">
+            {status === "UPLOADING" && (
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+            )}
             {status === "VALIDATING" && (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
             )}
@@ -191,7 +235,7 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
           </div>
 
           {/* File preview */}
-          {fileInfo && (status === "UPLOADING" || status === "VALIDATING" || status === "VALID" || status === "INVALID") && (
+          {fileInfo && status !== "EMPTY" && (
             <p className="mt-1 text-xs text-gray-400 truncate">
               {fileInfo.name} &middot; {fileInfo.sizeLabel}
             </p>
@@ -203,8 +247,8 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
           <p className="mt-1.5 text-xs text-gray-400">Accepted: PDF, JPG, PNG — Max 50MB</p>
         </div>
 
-        {/* Drag-and-drop zone */}
-        <div>
+        {/* Right column: upload zone + cancel */}
+        <div className="flex flex-col items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -238,6 +282,16 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
             {status === "VALID" ? "Replace" : "Upload"}
             <span className="text-gray-400">or drag &amp; drop</span>
           </div>
+
+          {/* Cancel button — shown while uploading or validating */}
+          {isProcessing && (
+            <button
+              onClick={handleCancel}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline underline-offset-2"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-import { buildS3Key, uploadFile } from "@/lib/s3";
+import { buildS3Key } from "@/lib/s3";
 import { validateDocument } from "@/lib/validation";
 import { runConsistencyCheck } from "@/lib/consistency-check";
 import { portalUploadLimiter } from "@/lib/rate-limit";
@@ -71,69 +71,76 @@ export async function POST(
     );
   }
 
-  const { deal } = record;
-  const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const { deal } = record;
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-  const s3Key = buildS3Key(deal.bankId, deal.id, file.name);
-  await uploadFile(s3Key, buffer, file.type);
+    const s3Key = buildS3Key(deal.bankId, deal.id, file.name);
 
-  const document = await prisma.document.create({
-    data: {
-      dealId: deal.id,
-      bankId: deal.bankId,
-      docType,
-      s3Key,
-      originalFilename: sanitizeFilename(file.name),
-      fileSize: file.size,
-      status: "PENDING",
-    },
-  });
-
-  await prisma.documentChecklist.updateMany({
-    where: { dealId: deal.id, docType },
-    data: { uploaded: true },
-  });
-
-  await prisma.activityLog.create({
-    data: {
-      dealId: deal.id,
-      bankId: deal.bankId,
-      userId: deal.bankerId,
-      actionType: "DOCUMENT_UPLOADED",
-      metadataJson: { docType, documentId: document.id, filename: file.name },
-    },
-  });
-
-  validateDocument(document.id)
-    .then(async () => {
-      const checklist = await prisma.documentChecklist.findMany({
-        where: { dealId: deal.id, required: true },
-      });
-      const allValidated = checklist.length > 0 && checklist.every((item) => item.validated);
-
-      if (allValidated) {
-        await prisma.notification.create({
-          data: {
-            bankId: deal.bankId,
-            recipientType: "BANKER",
-            recipientId: deal.bankerId,
-            dealId: deal.id,
-            channel: "IN_APP",
-            template: `All documents collected for ${deal.internalName}`,
-            read: false,
-          },
-        });
-        runConsistencyCheck(deal.id).catch((err) => {
-          console.error(`[runConsistencyCheck] Failed for ${deal.id}:`, err);
-        });
-      }
-    })
-    .catch((err) => {
-      console.error(`[validateDocument] Failed for ${document.id}:`, err);
+    const document = await prisma.document.create({
+      data: {
+        dealId: deal.id,
+        bankId: deal.bankId,
+        docType,
+        s3Key,
+        originalFilename: sanitizeFilename(file.name),
+        fileSize: file.size,
+        status: "PENDING",
+      },
     });
 
-  return NextResponse.json(
-    { success: true, data: { documentId: document.id, status: "VALIDATING" }, error: null },
-    { status: 201 }
-  );
+    await prisma.documentChecklist.updateMany({
+      where: { dealId: deal.id, docType },
+      data: { uploaded: true },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        dealId: deal.id,
+        bankId: deal.bankId,
+        userId: deal.bankerId,
+        actionType: "DOCUMENT_UPLOADED",
+        metadataJson: { docType, documentId: document.id, filename: file.name },
+      },
+    });
+
+    validateDocument(document.id, buffer, s3Key, file.type)
+      .then(async () => {
+        const checklist = await prisma.documentChecklist.findMany({
+          where: { dealId: deal.id, required: true },
+        });
+        const allValidated = checklist.length > 0 && checklist.every((item) => item.validated);
+
+        if (allValidated) {
+          await prisma.notification.create({
+            data: {
+              bankId: deal.bankId,
+              recipientType: "BANKER",
+              recipientId: deal.bankerId,
+              dealId: deal.id,
+              channel: "IN_APP",
+              template: `All documents collected for ${deal.internalName}`,
+              read: false,
+            },
+          });
+          runConsistencyCheck(deal.id).catch((err) => {
+            console.error(`[runConsistencyCheck] Failed for ${deal.id}:`, err);
+          });
+        }
+      })
+      .catch((err) => {
+        console.error(`[validateDocument] Failed for ${document.id}:`, err);
+      });
+
+    return NextResponse.json(
+      { success: true, data: { documentId: document.id, status: "VALIDATING" }, error: null },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[upload] Unexpected error:", err);
+    return NextResponse.json(
+      { success: false, data: null, error: "Upload failed. Please try again." },
+      { status: 500 }
+    );
+  }
 }

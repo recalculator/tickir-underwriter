@@ -1,24 +1,15 @@
-import fs from "fs/promises";
+import { PDFParse } from "pdf-parse";
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
-import { downloadFile, hasS3Config } from "@/lib/s3";
+import { uploadFile } from "@/lib/s3";
 
 type ValidationResult = {
-  doc_type_match: boolean;
-  quality_ok: boolean;
-  issues: string[];
-  confidence: number;
+  has_required_info: boolean;
+  missing_fields: string[];
   borrower_message: string | null;
 };
 
-async function readFileBytes(s3Key: string): Promise<Buffer> {
-  if (hasS3Config()) {
-    return downloadFile(s3Key);
-  }
-  return fs.readFile(s3Key);
-}
-
-function isImageContentType(filename: string): boolean {
+function isImageFilename(filename: string): boolean {
   const lower = filename.toLowerCase();
   return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
 }
@@ -27,21 +18,49 @@ function mediaTypeFromFilename(filename: string): "image/jpeg" | "image/png" {
   return filename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
 }
 
-export async function validateDocument(documentId: string): Promise<void> {
+async function extractPdfText(fileBytes: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: fileBytes });
+  const result = await parser.getText();
+  return result.text ?? "";
+}
+
+function buildValidationPrompt(label: string, description: string | null): string {
+  const requirement = description
+    ? `What the banker needs: ${description}`
+    : `Document type: ${label}`;
+
+  return `You are reviewing a document submitted for a commercial loan application. Your job is to verify the document contains the specific information the banker requires — not to judge whether it is a "real" document.
+
+${requirement}
+
+Carefully check whether the document provides all the required information listed above. Focus on completeness: are all the specific data points, figures, or details the banker needs actually present?
+
+Return ONLY a JSON object with this exact shape:
+{ "has_required_info": boolean, "missing_fields": string[], "borrower_message": string | null }
+
+- has_required_info: true only if the document clearly contains everything described above
+- missing_fields: list the specific pieces of information that appear absent or unreadable (empty array if nothing is missing)
+- borrower_message: null if the document is complete; otherwise a plain-English message telling the borrower exactly what is missing or needs to be resubmitted`;
+}
+
+export async function validateDocument(
+  documentId: string,
+  fileBytes: Buffer,
+  s3Key: string,
+  contentType: string,
+): Promise<void> {
   const document = await prisma.document.findUnique({
     where: { id: documentId },
-    include: {
-      deal: {
-        include: {
-          documentChecklist: { where: { docType: { equals: undefined } } },
-        },
-      },
-    },
+    include: { deal: true },
   });
 
   if (!document) {
     throw new Error(`Document ${documentId} not found`);
   }
+
+  const checklistItem = await prisma.documentChecklist.findFirst({
+    where: { dealId: document.dealId, docType: document.docType },
+  });
 
   await prisma.document.update({
     where: { id: documentId },
@@ -51,6 +70,7 @@ export async function validateDocument(documentId: string): Promise<void> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   if (!anthropicKey) {
+    await uploadFile(s3Key, fileBytes, contentType);
     await prisma.document.update({
       where: { id: documentId },
       data: { status: "VALID", aiNotes: "Validation skipped (no API key)", validatedAt: new Date() },
@@ -72,11 +92,16 @@ export async function validateDocument(documentId: string): Promise<void> {
   }
 
   try {
-    const fileBytes = await readFileBytes(document.s3Key);
-    const isImage = isImageContentType(document.originalFilename);
+    const isImage = isImageFilename(document.originalFilename);
+    const isPdf = document.originalFilename.toLowerCase().endsWith(".pdf");
+
+    const label = checklistItem?.label ?? document.docType;
+    const description = checklistItem?.description ?? null;
+    const validationPrompt = buildValidationPrompt(label, description);
 
     type MessageParam = Parameters<typeof anthropic.messages.create>[0]["messages"][0];
     let messageContent: MessageParam["content"];
+    let extractedText: string | null = null;
 
     if (isImage) {
       const base64 = fileBytes.toString("base64");
@@ -89,32 +114,51 @@ export async function validateDocument(documentId: string): Promise<void> {
             data: base64,
           },
         },
-        {
-          type: "text",
-          text: `You are reviewing a document uploaded for a commercial loan application. The expected document type is: ${document.docType}. Review this document and return ONLY a JSON object: { "doc_type_match": boolean, "quality_ok": boolean, "issues": string[], "confidence": number, "borrower_message": string | null }. The borrower_message should be null if the document is acceptable, or a clear plain-English message if there's an issue.`,
-        },
+        { type: "text", text: validationPrompt },
       ];
-    } else {
-      const textContent = fileBytes.toString("utf-8").slice(0, 12000);
-      messageContent = `You are reviewing a document uploaded for a commercial loan application. The expected document type is: ${document.docType}. Here is the document content (first portion):\n\n${textContent}\n\nReturn ONLY a JSON object: { "doc_type_match": boolean, "quality_ok": boolean, "issues": string[], "confidence": number, "borrower_message": string | null }. The borrower_message should be null if the document is acceptable, or a clear plain-English message if there's an issue.`;
-    }
-
-    // Extract and cache text from PDFs at validation time
-    let extractedText: string | null = null;
-    if (!isImage) {
-      const isPdf = document.originalFilename.toLowerCase().endsWith(".pdf");
-      if (isPdf) {
-        try {
-          const { PDFParse } = await import("pdf-parse");
-          const parser = new PDFParse({ data: new Uint8Array(fileBytes) });
-          const pdfData = await parser.getText();
-          extractedText = pdfData.text.slice(0, 15000);
-        } catch {
-          // non-fatal — spreading will re-extract if needed
-        }
-      } else {
-        extractedText = fileBytes.toString("utf-8").slice(0, 15000);
+    } else if (isPdf) {
+      // Extract readable text from the PDF first, then send that to Claude.
+      // Sending raw PDF bytes as UTF-8 gives Claude binary garbage.
+      let pdfText = "";
+      try {
+        pdfText = await extractPdfText(fileBytes);
+      } catch (err) {
+        console.warn(`[validation] PDF text extraction failed for ${documentId}:`, err);
       }
+
+      if (pdfText.trim().length > 50) {
+        extractedText = pdfText.slice(0, 15000);
+        messageContent = `${validationPrompt}\n\nDocument content:\n\n${pdfText.slice(0, 12000)}`;
+      } else {
+        // Scanned / image-based PDF — no extractable text.
+        // Mark as needing manual review rather than falsely invalidating.
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            status: "INVALID",
+            aiNotes:
+              "Your document appears to be a scanned image without selectable text. " +
+              "Please re-upload as a searchable PDF, or export directly from your software (e.g. download from IRS.gov, export from your accounting software, or use your bank's PDF statement download). " +
+              "Photographed or scanned copies that have not been run through OCR cannot be verified.",
+            validatedAt: new Date(),
+          },
+        });
+        await prisma.activityLog.create({
+          data: {
+            dealId: document.dealId,
+            bankId: document.bankId,
+            userId: document.deal.bankerId,
+            actionType: "DOCUMENT_VALIDATED",
+            metadataJson: { documentId, status: "INVALID", reason: "scanned_pdf_no_text" },
+          },
+        });
+        return;
+      }
+    } else {
+      // Plain text or other non-binary file
+      const textContent = fileBytes.toString("utf-8");
+      extractedText = textContent.slice(0, 15000);
+      messageContent = `${validationPrompt}\n\nDocument content:\n\n${textContent.slice(0, 12000)}`;
     }
 
     const response = await anthropic.messages.create({
@@ -134,8 +178,11 @@ export async function validateDocument(documentId: string): Promise<void> {
     }
 
     const result: ValidationResult = JSON.parse(jsonMatch[0]);
-    const isValid =
-      result.doc_type_match && result.quality_ok && result.issues.length === 0;
+    const isValid = result.has_required_info && result.missing_fields.length === 0;
+
+    if (isValid) {
+      await uploadFile(s3Key, fileBytes, contentType);
+    }
 
     await prisma.document.update({
       where: { id: documentId },
@@ -163,8 +210,7 @@ export async function validateDocument(documentId: string): Promise<void> {
         metadataJson: {
           documentId,
           status: isValid ? "VALID" : "INVALID",
-          confidence: result.confidence,
-          issues: result.issues,
+          missingFields: result.missing_fields,
         },
       },
     });
