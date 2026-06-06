@@ -84,7 +84,8 @@ function Hero() {
         lineHeight: 1.08,
         maxWidth: 680,
       }}>
-        Commercial lending, reimagined.
+        Commercial lending,{" "}
+        <em style={{ fontStyle: "italic", fontWeight: 800, color: "var(--accent)" }}>reimagined.</em>
       </h1>
 
       <p style={{
@@ -94,8 +95,9 @@ function Hero() {
         lineHeight: 1.6,
         maxWidth: 560,
       }}>
-        AI that reads financials, validates documents, and surfaces what matters.
-        Built for regional banks.
+        AI that reads financials, validates documents, and{" "}
+        <em style={{ fontStyle: "italic", color: "var(--ink-2)", fontWeight: 400 }}>surfaces what matters.</em>
+        {" "}Built for regional banks.
       </p>
 
       {/* CTAs */}
@@ -333,7 +335,8 @@ function TrustLayer() {
             letterSpacing: "-0.03em",
             lineHeight: 1.2,
           }}>
-            Every AI action is transparent, attributable, and reversible.
+            Every AI action is transparent, attributable, and{" "}
+          <em style={{ fontStyle: "italic", color: "var(--accent)" }}>reversible.</em>
           </h2>
           <p style={{ margin: 0, fontSize: 14.5, color: "var(--ink-3)", lineHeight: 1.7 }}>
             Green, yellow, and red confidence tiers on every cell. Source citations showing exactly
@@ -395,7 +398,8 @@ function CtaSection() {
         color: "var(--ink)",
         letterSpacing: "-0.03em",
       }}>
-        Ready to cut your deal cycle in half?
+        Ready to cut your deal cycle{" "}
+        <em style={{ fontStyle: "italic", color: "var(--accent)" }}>in half?</em>
       </h2>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 32 }}>
         <Link
