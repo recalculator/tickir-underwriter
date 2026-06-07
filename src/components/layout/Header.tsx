@@ -228,7 +228,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               gap: 6,
               padding: "7px 14px",
               borderRadius: "var(--r-md)",
-              background: "var(--accent)",
+              background: "var(--accent-bright)",
               color: "var(--accent-ink)",
               fontSize: 13,
               fontWeight: 700,
