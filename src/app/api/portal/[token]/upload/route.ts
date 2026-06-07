@@ -50,7 +50,17 @@ export async function POST(
   }
 
   const { token } = await params;
-  const record = await getTokenRecord(token);
+
+  let record: Awaited<ReturnType<typeof getTokenRecord>>;
+  try {
+    record = await getTokenRecord(token);
+  } catch (err) {
+    console.error("[upload] DB error on token lookup:", err);
+    return NextResponse.json(
+      { success: false, data: null, error: "Upload failed. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!record || record.expiresAt < new Date()) {
     return NextResponse.json(

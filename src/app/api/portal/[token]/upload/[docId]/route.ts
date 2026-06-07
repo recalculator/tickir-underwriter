@@ -8,9 +8,8 @@ import { sendEmail } from "@/lib/email";
 import { runConsistencyCheck } from "@/lib/consistency-check";
 import type { ApiResponse } from "@/types";
 
-// Give after() callbacks enough time for Claude validation on Pro/Enterprise.
-// Vercel Hobby caps this at 60 s automatically.
-export const maxDuration = 300;
+// 60 s is the Vercel Hobby plan maximum; Pro/Enterprise plans can set this higher.
+export const maxDuration = 60;
 
 function buildDocsReadyEmail({
   bankerName,
@@ -133,41 +132,41 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ token: string; docId: string }> }
 ): Promise<NextResponse<ApiResponse<null>>> {
-  const { token, docId } = await params;
-  const record = await getTokenRecord(token);
-
-  if (!record || record.expiresAt < new Date()) {
-    return NextResponse.json(
-      { success: false, data: null, error: "Invalid or expired token" },
-      { status: 401 }
-    );
-  }
-
-  if (hasS3Config() || hasSupabaseStorageConfig()) {
-    return NextResponse.json(
-      { success: false, data: null, error: "Use the presigned URL to upload" },
-      { status: 400 }
-    );
-  }
-
-  const document = await prisma.document.findFirst({
-    where: { id: docId, dealId: record.deal.id },
-  });
-
-  if (!document) {
-    return NextResponse.json(
-      { success: false, data: null, error: "Document not found" },
-      { status: 404 }
-    );
-  }
-
   try {
+    const { token, docId } = await params;
+    const record = await getTokenRecord(token);
+
+    if (!record || record.expiresAt < new Date()) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Invalid or expired token" },
+        { status: 401 }
+      );
+    }
+
+    if (hasS3Config() || hasSupabaseStorageConfig()) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Use the presigned URL to upload" },
+        { status: 400 }
+      );
+    }
+
+    const document = await prisma.document.findFirst({
+      where: { id: docId, dealId: record.deal.id },
+    });
+
+    if (!document) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Document not found" },
+        { status: 404 }
+      );
+    }
+
     const buffer = Buffer.from(await req.arrayBuffer());
     const contentType = req.headers.get("content-type") ?? "application/octet-stream";
     await uploadFile(document.s3Key, buffer, contentType);
     return NextResponse.json({ success: true, data: null, error: null });
   } catch (err) {
-    console.error(`[upload-data] Failed to store file for ${docId}:`, err);
+    console.error("[upload-data] Unexpected error:", err);
     return NextResponse.json(
       { success: false, data: null, error: "Failed to store file. Please try again." },
       { status: 500 }
@@ -179,88 +178,98 @@ export async function PUT(
 // Triggers validation and all post-validation logic via after() so Vercel
 // keeps the function alive past the HTTP response.
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ token: string; docId: string }> }
 ): Promise<NextResponse<ApiResponse<{ documentId: string; status: "VALIDATING" }>>> {
-  const { token, docId } = await params;
-  const record = await getTokenRecord(token);
+  try {
+    const { token, docId } = await params;
+    const record = await getTokenRecord(token);
 
-  if (!record || record.expiresAt < new Date()) {
-    return NextResponse.json(
-      { success: false, data: null, error: "Invalid or expired token" },
-      { status: 401 }
-    );
-  }
-
-  const document = await prisma.document.findFirst({
-    where: { id: docId, dealId: record.deal.id },
-    include: { deal: true },
-  });
-
-  if (!document) {
-    return NextResponse.json(
-      { success: false, data: null, error: "Document not found" },
-      { status: 404 }
-    );
-  }
-
-  const { deal, s3Key } = document;
-
-  after(async () => {
-    try {
-      await validateDocument(docId, s3Key);
-
-      const checklist = await prisma.documentChecklist.findMany({
-        where: { dealId: deal.id, required: true },
-      });
-      const allValidated = checklist.length > 0 && checklist.every((item) => item.validated);
-
-      if (!allValidated) return;
-
-      await prisma.notification.create({
-        data: {
-          bankId: deal.bankId,
-          recipientType: "BANKER",
-          recipientId: deal.bankerId,
-          dealId: deal.id,
-          channel: "IN_APP",
-          template: `All documents collected for ${deal.internalName}`,
-          read: false,
-        },
-      });
-
-      const banker = await prisma.user.findUnique({
-        where: { id: deal.bankerId },
-        select: { email: true, name: true },
-      });
-
-      if (banker?.email) {
-        const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-        const dealUrl = `${baseUrl}/deals/${deal.id}`;
-        sendEmail({
-          to: banker.email,
-          subject: `All documents received for ${deal.internalName}`,
-          html: buildDocsReadyEmail({
-            bankerName: banker.name ?? "there",
-            dealName: deal.internalName,
-            borrowerName: deal.borrowerName,
-            dealUrl,
-          }),
-        }).catch((err) => {
-          console.error("[complete] Failed to email banker:", err);
-        });
-      }
-
-      runConsistencyCheck(deal.id).catch((err) => {
-        console.error(`[runConsistencyCheck] Failed for ${deal.id}:`, err);
-      });
-    } catch (err) {
-      console.error(`[complete] Post-upload processing failed for ${docId}:`, err);
+    if (!record || record.expiresAt < new Date()) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Invalid or expired token" },
+        { status: 401 }
+      );
     }
-  });
 
-  return NextResponse.json(
-    { success: true, data: { documentId: docId, status: "VALIDATING" }, error: null },
-    { status: 202 }
-  );
+    const document = await prisma.document.findFirst({
+      where: { id: docId, dealId: record.deal.id },
+      include: { deal: true },
+    });
+
+    if (!document) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Document not found" },
+        { status: 404 }
+      );
+    }
+
+    const { deal, s3Key } = document;
+
+    after(async () => {
+      try {
+        await validateDocument(docId, s3Key);
+
+        const checklist = await prisma.documentChecklist.findMany({
+          where: { dealId: deal.id, required: true },
+        });
+        const allValidated =
+          checklist.length > 0 &&
+          checklist.every((item: { validated: boolean }) => item.validated);
+
+        if (!allValidated) return;
+
+        await prisma.notification.create({
+          data: {
+            bankId: deal.bankId,
+            recipientType: "BANKER",
+            recipientId: deal.bankerId,
+            dealId: deal.id,
+            channel: "IN_APP",
+            template: `All documents collected for ${deal.internalName}`,
+            read: false,
+          },
+        });
+
+        const banker = await prisma.user.findUnique({
+          where: { id: deal.bankerId },
+          select: { email: true, name: true },
+        });
+
+        if (banker?.email) {
+          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+          const dealUrl = `${baseUrl}/deals/${deal.id}`;
+          sendEmail({
+            to: banker.email,
+            subject: `All documents received for ${deal.internalName}`,
+            html: buildDocsReadyEmail({
+              bankerName: banker.name ?? "there",
+              dealName: deal.internalName,
+              borrowerName: deal.borrowerName,
+              dealUrl,
+            }),
+          }).catch((err) => {
+            console.error("[complete] Failed to email banker:", err);
+          });
+        }
+
+        runConsistencyCheck(deal.id).catch((err) => {
+          console.error(`[runConsistencyCheck] Failed for ${deal.id}:`, err);
+        });
+      } catch (err) {
+        console.error(`[complete] Post-upload processing failed for ${docId}:`, err);
+      }
+    });
+
+    return NextResponse.json(
+      { success: true, data: { documentId: docId, status: "VALIDATING" }, error: null },
+      { status: 202 }
+    );
+  } catch (err) {
+    console.error("[complete] Unexpected error:", err);
+    return NextResponse.json(
+      { success: false, data: null, error: "Upload failed. Please try again." },
+      { status: 500 }
+    );
+  }
 }
