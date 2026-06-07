@@ -93,9 +93,9 @@ export default async function DashboardPage() {
     <div style={{ padding: "24px 28px", background: "var(--bg-deep)", minHeight: "100vh" }}>
       {isNewBank && (
         <div style={{
-          marginBottom: 20,
-          padding: "12px 16px",
-          borderRadius: "var(--r-md)",
+          marginBottom: 22,
+          padding: "14px 18px",
+          borderRadius: "var(--r-lg)",
           background: "var(--accent-glow)",
           border: "1px solid var(--accent-deep)",
           fontSize: 13,
@@ -159,13 +159,13 @@ function CheckItem({
 function OnboardingChecklist({ templateCount }: { templateCount: number }) {
   return (
     <div style={{
-      borderRadius: "var(--r-lg)",
-      border: "1px dashed var(--line-2)",
+      borderRadius: "var(--r-xl)",
+      border: "1px solid var(--line)",
       background: "var(--panel)",
-      padding: 32,
+      padding: 36,
     }}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Welcome to Tickir AI</h2>
-      <p style={{ margin: "4px 0 24px", fontSize: 13, color: "var(--ink-4)" }}>Complete these steps to get started.</p>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.01em" }}>Welcome to Tickir AI</h2>
+      <p style={{ margin: "6px 0 26px", fontSize: 13, color: "var(--ink-3)" }}>Complete these steps to get started.</p>
       <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
         <CheckItem done label="Account created" />
         <CheckItem

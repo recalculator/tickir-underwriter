@@ -68,15 +68,15 @@ function StatsBar({ deals }: { deals: DealListItem[] }) {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
       {stats.map((s) => (
         <div key={s.label} style={{
-          padding: "14px 16px",
-          borderRadius: "var(--r-lg)",
+          padding: "18px 20px",
+          borderRadius: "var(--r-xl)",
           background: "var(--panel)",
           border: "1px solid var(--line)",
         }}>
-          <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+          <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
             {s.value}
           </p>
-          <p style={{ margin: "3px 0 0", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>{s.label}</p>
+          <p style={{ margin: "5px 0 0", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)" }}>{s.label}</p>
           <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--ink-4)" }}>{s.sub}</p>
         </div>
       ))}
@@ -95,10 +95,10 @@ function StageBars({ deals, activeStage, onFilter }: { deals: DealListItem[]; ac
     <div style={{
       display: "flex",
       gap: 6,
-      marginBottom: 16,
-      padding: "12px 16px",
+      marginBottom: 18,
+      padding: "14px 18px",
       background: "var(--panel)",
-      borderRadius: "var(--r-lg)",
+      borderRadius: "var(--r-xl)",
       border: "1px solid var(--line)",
     }}>
       {stageCounts.map(({ stage, count }) => (
@@ -174,21 +174,21 @@ export function PipelineList({ deals }: Props) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: 64,
-        borderRadius: "var(--r-lg)",
-        border: "1px dashed var(--line-2)",
+        padding: 72,
+        borderRadius: "var(--r-xl)",
+        border: "1px solid var(--line)",
         background: "var(--panel)",
       }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--ink-3)" }}>No deals yet</p>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--ink-3)" }}>No deals yet</p>
         <Link
           href="/deals/new"
           style={{
-            marginTop: 16,
-            padding: "8px 18px",
+            marginTop: 18,
+            padding: "10px 22px",
             borderRadius: "var(--r-md)",
             background: "var(--accent)",
             color: "var(--accent-ink)",
-            fontSize: 13,
+            fontSize: 13.5,
             fontWeight: 700,
             textDecoration: "none",
           }}
