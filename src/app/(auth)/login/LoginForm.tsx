@@ -12,7 +12,7 @@ function BrandMark() {
       <TickrLogo size={40} />
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.02em" }}>Tickir AI</div>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>AI CREDIT OS</div>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", color: "var(--ink-4)", marginTop: 2 }}>AI LOAN OS</div>
       </div>
     </div>
   );
