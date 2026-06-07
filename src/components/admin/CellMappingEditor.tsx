@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const DOC_TYPES = [
   "BUSINESS_TAX_RETURN",
@@ -70,6 +70,8 @@ type Props = {
 };
 
 type EditingState = { type: "row"; idx: number } | { type: "new" } | null;
+type ImportStatus = "idle" | "importing" | "error";
+type EnrichStatus = "idle" | "enriching" | "done" | "error";
 
 export function CellMappingEditor({ templateId, initialCellsJson }: Props) {
   const [activeTab, setActiveTab] = useState<"cells" | "raw">("cells");
@@ -79,6 +81,11 @@ export function CellMappingEditor({ templateId, initialCellsJson }: Props) {
   const [editBuf, setEditBuf] = useState<CellDef>(EMPTY_CELL);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<ImportStatus>("idle");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [enrichStatus, setEnrichStatus] = useState<EnrichStatus>("idle");
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function syncCellsToRaw(updated: CellDef[]) {
     setCells(updated);
@@ -155,11 +162,134 @@ export function CellMappingEditor({ templateId, initialCellsJson }: Props) {
     }
   }
 
+  async function handleImportExcel(file: File) {
+    setImportStatus("importing");
+    setImportError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/admin/templates/${templateId}/import-excel`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json().catch(() => ({ error: "Unexpected response" }));
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      const imported = parseCells(JSON.stringify(data.data.cellsJson));
+      // Merge: keep existing cells and append new ones that don't conflict
+      const existingRefs = new Set(cells.map((c) => c.cell_ref));
+      const toAdd = imported.filter((c) => !existingRefs.has(c.cell_ref));
+      syncCellsToRaw([...cells, ...toAdd]);
+      setImportStatus("idle");
+    } catch (err) {
+      setImportStatus("error");
+      setImportError(err instanceof Error ? err.message : "Import failed");
+    }
+  }
+
+  async function handleAiEnrich() {
+    if (cells.length === 0) return;
+    setEnrichStatus("enriching");
+    setEnrichError(null);
+    try {
+      const inputCells = cells
+        .filter((c) => c.cell_type === "input" && c.label)
+        .map((c) => ({ cell_ref: c.cell_ref, label: c.label }));
+      if (inputCells.length === 0) {
+        setEnrichStatus("idle");
+        return;
+      }
+      const res = await fetch(`/api/admin/templates/${templateId}/ai-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells: inputCells }),
+      });
+      const data = await res.json().catch(() => ({ error: "Unexpected response" }));
+      if (!res.ok) throw new Error(data.error ?? "Enrichment failed");
+      const enriched: Record<string, { source_doc_type: string; source_form: string; source_line_item: string; extraction_instructions: string }> = data.data.enriched;
+      const updated = cells.map((c) => {
+        const e = enriched[c.cell_ref];
+        if (!e) return c;
+        return {
+          ...c,
+          source_doc_type: e.source_doc_type || c.source_doc_type,
+          source_form: e.source_form || c.source_form,
+          source_line_item: e.source_line_item || c.source_line_item,
+          extraction_instructions: e.extraction_instructions || c.extraction_instructions,
+        };
+      });
+      syncCellsToRaw(updated);
+      setEnrichStatus("done");
+    } catch (err) {
+      setEnrichStatus("error");
+      setEnrichError(err instanceof Error ? err.message : "Enrichment failed");
+    }
+  }
+
   const isEditingNew = editing?.type === "new";
   const isEditingRow = (idx: number) => editing?.type === "row" && editing.idx === idx;
 
   return (
     <div className="space-y-4">
+      {/* Import / AI Enrich toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) { handleImportExcel(file); e.target.value = ""; }
+          }}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importStatus === "importing"}
+          style={{
+            borderRadius: "var(--r-md)",
+            border: "1px solid var(--line-2)",
+            background: "var(--panel-2)",
+            color: "var(--ink-2)",
+            padding: "7px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: importStatus === "importing" ? "not-allowed" : "pointer",
+            opacity: importStatus === "importing" ? 0.6 : 1,
+          }}
+        >
+          {importStatus === "importing" ? "Importing…" : "Import from Excel"}
+        </button>
+        <button
+          onClick={handleAiEnrich}
+          disabled={enrichStatus === "enriching" || cells.length === 0}
+          style={{
+            borderRadius: "var(--r-md)",
+            border: "1px solid var(--line-2)",
+            background: "var(--panel-2)",
+            color: "var(--ink-2)",
+            padding: "7px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: (enrichStatus === "enriching" || cells.length === 0) ? "not-allowed" : "pointer",
+            opacity: (enrichStatus === "enriching" || cells.length === 0) ? 0.6 : 1,
+          }}
+        >
+          {enrichStatus === "enriching" ? "AI Enriching…" : "AI Enrich Cells"}
+        </button>
+        {importStatus === "error" && (
+          <span style={{ fontSize: 12, color: "var(--s-dec)" }}>{importError}</span>
+        )}
+        {enrichStatus === "done" && (
+          <span style={{ fontSize: 12, color: "var(--s-clo)" }}>Cells enriched — review and save.</span>
+        )}
+        {enrichStatus === "error" && (
+          <span style={{ fontSize: 12, color: "var(--s-dec)" }}>{enrichError}</span>
+        )}
+        <span style={{ fontSize: 12, color: "var(--ink-4)", marginLeft: "auto" }}>
+          {cells.length} cell{cells.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--line)", paddingBottom: 0 }}>
         {(["cells", "raw"] as const).map((tab) => (

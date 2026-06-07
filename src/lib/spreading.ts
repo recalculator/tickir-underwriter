@@ -127,6 +127,79 @@ Return ONLY this JSON (no other text):
 }`;
 }
 
+type ImageCacheEntry = { base64: string; mediaType: "image/jpeg" | "image/png" };
+
+async function extractCellWithClaude(
+  cell: CellDef,
+  cellRef: string,
+  matchingDoc: DocumentRecord | undefined,
+  docTextCache: Map<string, string>,
+  imageCache: Map<string, ImageCacheEntry>
+): Promise<ExtractionResult> {
+  let response;
+
+  if (!matchingDoc) {
+    const prompt = buildTextPrompt(cell, cellRef, "(no matching document uploaded)");
+    response = await anthropic.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    });
+  } else if (isImageFilename(matchingDoc.originalFilename)) {
+    const cached = imageCache.get(matchingDoc.id);
+    if (!cached) throw new Error("Image not pre-cached");
+    response = await anthropic.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 512,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: cached.mediaType, data: cached.base64 } },
+            {
+              type: "text",
+              text: `You are a commercial loan underwriter extracting a specific financial figure from this document image.
+
+FIELD: ${cell.label ?? cellRef} (cell ${cellRef})
+DOCUMENT TYPE: ${cell.source_doc_type ?? "any"}
+SECTION/FORM: ${cell.source_form ?? "any"}
+EXACT LINE ITEM: ${cell.source_line_item ?? "any"}
+YEAR: ${yearLabel(cell.year_offset)}
+SPECIAL INSTRUCTIONS: ${cell.extraction_instructions ?? "none"}
+
+Find the exact dollar amount for "${cell.source_line_item ?? cell.label ?? cellRef}".
+Return ONLY this JSON (no other text):
+{
+  "value": <number in dollars, no commas, or null>,
+  "confidence": <0.0 to 1.0>,
+  "source_doc": "<filename or doc type>",
+  "source_page": <page number or null>,
+  "source_line": "<exact label as it appears in the document>",
+  "formula_explanation": "<step-by-step if calculated, empty string if direct>",
+  "flag_reason": "<null if confident, or explanation of uncertainty>"
+}`,
+            },
+          ],
+        },
+      ],
+    });
+  } else {
+    const docText = docTextCache.get(matchingDoc.id) ?? "(no document text available)";
+    const prompt = buildTextPrompt(cell, cellRef, docText);
+    response = await anthropic.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    });
+  }
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") throw new Error("No text response from Claude");
+  const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Could not extract JSON from Claude response");
+  return JSON.parse(jsonMatch[0]) as ExtractionResult;
+}
+
 export async function runSpreading(dealId: string, templateId: string): Promise<string> {
   const [template, documents, deal] = await Promise.all([
     prisma.spreadTemplate.findUnique({ where: { id: templateId } }),
@@ -138,11 +211,7 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
   if (!deal) throw new Error(`Deal ${dealId} not found`);
 
   const spread = await prisma.spread.create({
-    data: {
-      dealId,
-      bankId: deal.bankId,
-      templateId,
-    },
+    data: { dealId, bankId: deal.bankId, templateId },
   });
 
   const cellsJson = template.cellsJson as Record<string, CellDef>;
@@ -172,134 +241,67 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
     return spread.id;
   }
 
-  // Pre-cache extracted text for each document
+  // Pre-cache extracted text and image buffers for all documents
   const docTextCache = new Map<string, string>();
+  const imageCache = new Map<string, ImageCacheEntry>();
 
-  for (const doc of documents as DocumentRecord[]) {
-    if (doc.extractedText) {
-      docTextCache.set(doc.id, doc.extractedText);
-      continue;
-    }
-
-    if (!isImageFilename(doc.originalFilename)) {
-      const extracted = await extractDocumentText(doc);
-      docTextCache.set(doc.id, extracted);
-      // Cache in DB for future runs
-      await prisma.document.update({
-        where: { id: doc.id },
-        data: { extractedText: extracted },
-      });
-    }
-  }
-
-  for (const [cellRef, cell] of cellEntries) {
-    const matchingDoc = (documents as DocumentRecord[]).find(
-      (d) => !cell.source_doc_type || d.docType === cell.source_doc_type
-    );
-
-    try {
-      let response;
-
-      if (!matchingDoc) {
-        const noDocPrompt = buildTextPrompt(cell, cellRef, "(no matching document uploaded)");
-        response = await anthropic.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: 512,
-          messages: [{ role: "user", content: noDocPrompt }],
-        });
-      } else if (isImageFilename(matchingDoc.originalFilename)) {
-        // Pass image as vision message
-        const buffer = await readFileBytes(matchingDoc.s3Key);
-        const base64 = buffer.toString("base64");
-        const mediaType = mediaTypeFromFilename(matchingDoc.originalFilename);
-
-        response = await anthropic.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: 512,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: { type: "base64", media_type: mediaType, data: base64 },
-                },
-                {
-                  type: "text",
-                  text: `You are a commercial loan underwriter extracting a specific financial figure from this document image.
-
-FIELD: ${cell.label ?? cellRef} (cell ${cellRef})
-DOCUMENT TYPE: ${cell.source_doc_type ?? "any"}
-SECTION/FORM: ${cell.source_form ?? "any"}
-EXACT LINE ITEM: ${cell.source_line_item ?? "any"}
-YEAR: ${yearLabel(cell.year_offset)}
-SPECIAL INSTRUCTIONS: ${cell.extraction_instructions ?? "none"}
-
-Find the exact dollar amount for "${cell.source_line_item ?? cell.label ?? cellRef}".
-Return ONLY this JSON (no other text):
-{
-  "value": <number in dollars, no commas, or null>,
-  "confidence": <0.0 to 1.0>,
-  "source_doc": "<filename or doc type>",
-  "source_page": <page number or null>,
-  "source_line": "<exact label as it appears in the document>",
-  "formula_explanation": "<step-by-step if calculated, empty string if direct>",
-  "flag_reason": "<null if confident, or explanation of uncertainty>"
-}`,
-                },
-              ],
-            },
-          ],
+  await Promise.all(
+    (documents as DocumentRecord[]).map(async (doc) => {
+      if (isImageFilename(doc.originalFilename)) {
+        const buffer = await readFileBytes(doc.s3Key);
+        imageCache.set(doc.id, {
+          base64: buffer.toString("base64"),
+          mediaType: mediaTypeFromFilename(doc.originalFilename),
         });
       } else {
-        const docText = docTextCache.get(matchingDoc.id) ?? "(no document text available)";
-        const prompt = buildTextPrompt(cell, cellRef, docText);
-        response = await anthropic.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: 512,
-          messages: [{ role: "user", content: prompt }],
+        const text = doc.extractedText ?? await extractDocumentText(doc);
+        docTextCache.set(doc.id, text);
+        if (!doc.extractedText) {
+          await prisma.document.update({ where: { id: doc.id }, data: { extractedText: text } });
+        }
+      }
+    })
+  );
+
+  // Process all cells in parallel
+  await Promise.allSettled(
+    cellEntries.map(async ([cellRef, cell]) => {
+      const matchingDoc = (documents as DocumentRecord[]).find(
+        (d) => !cell.source_doc_type || d.docType === cell.source_doc_type
+      );
+      try {
+        const result = await extractCellWithClaude(cell, cellRef, matchingDoc, docTextCache, imageCache);
+        const tier = confidenceTier(result.confidence);
+        await prisma.spreadCell.create({
+          data: {
+            spreadId: spread.id,
+            bankId: deal.bankId,
+            cellRef,
+            value: result.value !== null ? String(result.value) : null,
+            confidence: result.confidence,
+            confidenceTier: tier,
+            sourceDoc: result.source_doc,
+            sourcePage: result.source_page,
+            sourceLine: result.source_line ?? null,
+            formulaExplanation: result.formula_explanation || null,
+            flagReason: result.flag_reason ?? null,
+          },
+        });
+      } catch (err) {
+        await prisma.spreadCell.create({
+          data: {
+            spreadId: spread.id,
+            bankId: deal.bankId,
+            cellRef,
+            value: null,
+            confidence: 0,
+            confidenceTier: "RED",
+            flagReason: err instanceof Error ? err.message : "Extraction failed",
+          },
         });
       }
-
-      const textBlock = response.content.find((b) => b.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("No text response from Claude");
-      }
-
-      const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Could not extract JSON from Claude response");
-
-      const result: ExtractionResult = JSON.parse(jsonMatch[0]);
-      const tier = confidenceTier(result.confidence);
-
-      await prisma.spreadCell.create({
-        data: {
-          spreadId: spread.id,
-          bankId: deal.bankId,
-          cellRef,
-          value: result.value !== null ? String(result.value) : null,
-          confidence: result.confidence,
-          confidenceTier: tier,
-          sourceDoc: result.source_doc,
-          sourcePage: result.source_page,
-          formulaExplanation: result.formula_explanation,
-          flagReason: result.flag_reason,
-        },
-      });
-    } catch (err) {
-      await prisma.spreadCell.create({
-        data: {
-          spreadId: spread.id,
-          bankId: deal.bankId,
-          cellRef,
-          value: null,
-          confidence: 0,
-          confidenceTier: "RED",
-          flagReason: err instanceof Error ? err.message : "Extraction failed",
-        },
-      });
-    }
-  }
+    })
+  );
 
   return spread.id;
 }

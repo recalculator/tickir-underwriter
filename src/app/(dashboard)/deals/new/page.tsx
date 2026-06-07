@@ -255,7 +255,7 @@ export default function NewDealPage() {
                   required
                   type="number"
                   min="1"
-                  step="1000"
+                  step="1"
                   value={form.loanAmount}
                   onChange={(e) => updateField("loanAmount", e.target.value)}
                   style={{ ...inputStyle, paddingLeft: 24 }}

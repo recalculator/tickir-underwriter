@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SpreadGrid, type CellDefMeta } from "@/components/spread/SpreadGrid";
 import type { SpreadCellData } from "@/components/spread/CellPanel";
+import { RunSpreadingButton } from "@/components/spread/RunSpreadingButton";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -46,7 +47,7 @@ export default async function SpreadPage({ params }: PageProps) {
     confidenceTier: c.confidenceTier as "GREEN" | "YELLOW" | "RED",
     sourceDoc: c.sourceDoc,
     sourcePage: c.sourcePage,
-    sourceLine: c.sourceLine,
+    sourceLine: c.sourceLine ?? null,
     formulaExplanation: c.formulaExplanation,
     flagReason: c.flagReason,
     correctedValue: c.correctedValue,
@@ -115,7 +116,7 @@ export default async function SpreadPage({ params }: PageProps) {
           ) : (
             <div className="mt-6 flex flex-col items-center gap-4">
               <p style={{ fontSize: 13, color: "var(--ink-3)" }}>Select a template and run AI spreading.</p>
-              <RunSpreadingForm dealId={id} templates={templates} />
+              <RunSpreadingButton dealId={id} templates={templates} />
             </div>
           )}
         </div>
@@ -169,66 +170,6 @@ export default async function SpreadPage({ params }: PageProps) {
   );
 }
 
-function RunSpreadingForm({
-  dealId,
-  templates,
-}: {
-  dealId: string;
-  templates: { id: string; name: string }[];
-}) {
-  return (
-    <form
-      action={async (formData: FormData) => {
-        "use server";
-        const { redirect: serverRedirect } = await import("next/navigation");
-        const { runSpreading } = await import("@/lib/spreading");
-        const templateId = formData.get("templateId");
-        if (typeof templateId !== "string" || !templateId) {
-          serverRedirect(`/deals/${dealId}/spread`);
-          return;
-        }
-        await runSpreading(dealId, templateId);
-        serverRedirect(`/deals/${dealId}/spread`);
-      }}
-      className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
-    >
-      <select
-        name="templateId"
-        defaultValue={templates[0]?.id}
-        style={{
-          borderRadius: "var(--r-md)",
-          border: "1px solid var(--line-2)",
-          background: "var(--panel-2)",
-          color: "var(--ink)",
-          padding: "8px 12px",
-          fontSize: 13,
-          outline: "none",
-        }}
-      >
-        {templates.map((t) => (
-          <option key={t.id} value={t.id} style={{ background: "var(--bg-deep)" }}>
-            {t.name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="submit"
-        style={{
-          borderRadius: "var(--r-md)",
-          background: "var(--accent)",
-          color: "var(--accent-ink)",
-          padding: "8px 16px",
-          fontSize: 13,
-          fontWeight: 700,
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        Run AI Spreading
-      </button>
-    </form>
-  );
-}
 
 function LockSpreadButton({ dealId }: { dealId: string }) {
   return (

@@ -208,7 +208,7 @@ model SpreadCell {
   confidenceTier     ConfidenceTier @default(GREEN)
   sourceDoc          String?
   sourcePage         Int?
-  sourceLine         Int?
+  sourceLine         String?
   formulaExplanation String?
   flagReason         String?
   correctedValue     String?

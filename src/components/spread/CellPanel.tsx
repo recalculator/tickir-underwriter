@@ -10,7 +10,7 @@ export type SpreadCellData = {
   confidenceTier: "GREEN" | "YELLOW" | "RED";
   sourceDoc: string | null;
   sourcePage: number | null;
-  sourceLine: number | null;
+  sourceLine: string | null;
   formulaExplanation: string | null;
   flagReason: string | null;
   correctedValue: string | null;
@@ -113,6 +113,9 @@ export function CellPanel({ cell, dealId, locked, label, onSave }: Props) {
             <span style={{ color: "var(--ink-3)" }}>Source: </span>
             <span style={{ color: "var(--ink-2)" }}>{cell.sourceDoc}</span>
             {cell.sourcePage && <span style={{ color: "var(--ink-4)" }}>, p.{cell.sourcePage}</span>}
+            {cell.sourceLine && (
+              <span style={{ color: "var(--ink-4)" }}> — &ldquo;{cell.sourceLine}&rdquo;</span>
+            )}
           </div>
         )}
         {cell.confidenceTier === "YELLOW" && cell.formulaExplanation && (
