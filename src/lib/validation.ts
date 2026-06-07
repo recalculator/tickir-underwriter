@@ -1,7 +1,7 @@
 import { PDFParse } from "pdf-parse";
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
-import { uploadFile } from "@/lib/s3";
+import { downloadFile } from "@/lib/s3";
 
 type ValidationResult = {
   has_required_info: boolean;
@@ -43,11 +43,12 @@ Return ONLY a JSON object with this exact shape:
 - borrower_message: null if the document is complete; otherwise a plain-English message telling the borrower exactly what is missing or needs to be resubmitted`;
 }
 
+// File is expected to already be in storage before this is called.
+// fileBytes is optional — if omitted, the file is downloaded from s3Key.
 export async function validateDocument(
   documentId: string,
-  fileBytes: Buffer,
   s3Key: string,
-  contentType: string,
+  fileBytes?: Buffer,
 ): Promise<void> {
   const document = await prisma.document.findUnique({
     where: { id: documentId },
@@ -70,7 +71,6 @@ export async function validateDocument(
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   if (!anthropicKey) {
-    await uploadFile(s3Key, fileBytes, contentType);
     await prisma.document.update({
       where: { id: documentId },
       data: { status: "VALID", aiNotes: "Validation skipped (no API key)", validatedAt: new Date() },
@@ -92,6 +92,7 @@ export async function validateDocument(
   }
 
   try {
+    const buffer = fileBytes ?? await downloadFile(s3Key);
     const isImage = isImageFilename(document.originalFilename);
     const isPdf = document.originalFilename.toLowerCase().endsWith(".pdf");
 
@@ -104,7 +105,7 @@ export async function validateDocument(
     let extractedText: string | null = null;
 
     if (isImage) {
-      const base64 = fileBytes.toString("base64");
+      const base64 = buffer.toString("base64");
       messageContent = [
         {
           type: "image",
@@ -117,11 +118,9 @@ export async function validateDocument(
         { type: "text", text: validationPrompt },
       ];
     } else if (isPdf) {
-      // Extract readable text from the PDF first, then send that to Claude.
-      // Sending raw PDF bytes as UTF-8 gives Claude binary garbage.
       let pdfText = "";
       try {
-        pdfText = await extractPdfText(fileBytes);
+        pdfText = await extractPdfText(buffer);
       } catch (err) {
         console.warn(`[validation] PDF text extraction failed for ${documentId}:`, err);
       }
@@ -130,8 +129,6 @@ export async function validateDocument(
         extractedText = pdfText.slice(0, 15000);
         messageContent = `${validationPrompt}\n\nDocument content:\n\n${pdfText.slice(0, 12000)}`;
       } else {
-        // Scanned / image-based PDF — no extractable text.
-        // Mark as needing manual review rather than falsely invalidating.
         await prisma.document.update({
           where: { id: documentId },
           data: {
@@ -155,8 +152,7 @@ export async function validateDocument(
         return;
       }
     } else {
-      // Plain text or other non-binary file
-      const textContent = fileBytes.toString("utf-8");
+      const textContent = buffer.toString("utf-8");
       extractedText = textContent.slice(0, 15000);
       messageContent = `${validationPrompt}\n\nDocument content:\n\n${textContent.slice(0, 12000)}`;
     }
@@ -179,10 +175,6 @@ export async function validateDocument(
 
     const result: ValidationResult = JSON.parse(jsonMatch[0]);
     const isValid = result.has_required_info && result.missing_fields.length === 0;
-
-    if (isValid) {
-      await uploadFile(s3Key, fileBytes, contentType);
-    }
 
     await prisma.document.update({
       where: { id: documentId },

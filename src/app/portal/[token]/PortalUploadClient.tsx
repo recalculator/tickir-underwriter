@@ -55,6 +55,16 @@ function deriveInitialStatus(item: ChecklistItem): DocStatus {
   return "EMPTY";
 }
 
+// Resolve content type from file, falling back to extension.
+function getContentType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  return "application/octet-stream";
+}
+
 export function PortalUploadClient({ token, checklistItem }: Props) {
   const [status, setStatus] = useState<DocStatus>(deriveInitialStatus(checklistItem));
   const [error, setError] = useState<string | null>(null);
@@ -102,16 +112,13 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
   }
 
   async function handleCancel() {
-    // Abort any in-flight upload
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
 
-    // Stop the polling loop
     cancelPollingRef.current = true;
 
-    // Delete the document from storage + DB if it was already saved
     const docIdToDelete = documentId;
     setDocumentId(null);
     setFileInfo(null);
@@ -136,29 +143,89 @@ export function PortalUploadClient({ token, checklistItem }: Props) {
     abortControllerRef.current = controller;
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("docType", checklistItem.docType);
-
-      const res = await fetch(`/api/portal/${token}/upload`, {
+      // Step 1: Register the upload and get a presigned URL (or null for local dev).
+      const initRes = await fetch(`/api/portal/${token}/upload`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docType: checklistItem.docType,
+          filename: file.name,
+          contentType: getContentType(file),
+          fileSize: file.size,
+        }),
+        signal: controller.signal,
+      });
+
+      const initJson = await initRes.json();
+
+      if (!initRes.ok || !initJson.success) {
+        setStatus("EMPTY");
+        setError(initJson.error ?? "Upload failed. Please try again.");
+        abortControllerRef.current = null;
+        return;
+      }
+
+      const { documentId: docId, uploadUrl, contentType: resolvedContentType } = initJson.data as {
+        documentId: string;
+        uploadUrl: string | null;
+        contentType: string;
+      };
+
+      setDocumentId(docId);
+
+      // Step 2: Upload the file — directly to S3/Supabase if presigned URL was
+      // provided, otherwise through the local-dev proxy endpoint.
+      if (uploadUrl) {
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": resolvedContentType },
+          signal: controller.signal,
+        });
+
+        if (!uploadRes.ok) {
+          setStatus("EMPTY");
+          setError("Upload failed. Please try again.");
+          abortControllerRef.current = null;
+          return;
+        }
+      } else {
+        // Local dev: send raw bytes to our server proxy.
+        const uploadRes = await fetch(`/api/portal/${token}/upload/${docId}`, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": resolvedContentType },
+          signal: controller.signal,
+        });
+
+        const uploadJson = await uploadRes.json();
+
+        if (!uploadRes.ok || !uploadJson.success) {
+          setStatus("EMPTY");
+          setError(uploadJson.error ?? "Upload failed. Please try again.");
+          abortControllerRef.current = null;
+          return;
+        }
+      }
+
+      // Step 3: Tell the server the file is in storage and trigger validation.
+      const completeRes = await fetch(`/api/portal/${token}/upload/${docId}`, {
+        method: "POST",
         signal: controller.signal,
       });
 
       abortControllerRef.current = null;
 
-      const json = await res.json();
+      const completeJson = await completeRes.json();
 
-      if (!res.ok || !json.success) {
+      if (!completeRes.ok || !completeJson.success) {
         setStatus("EMPTY");
-        setError(json.error ?? "Upload failed. Please try again.");
+        setError(completeJson.error ?? "Upload failed. Please try again.");
         return;
       }
 
-      setDocumentId(json.data.documentId);
       setStatus("VALIDATING");
-      await pollStatus(json.data.documentId);
+      await pollStatus(docId);
     } catch (err) {
       abortControllerRef.current = null;
       if (err instanceof Error && err.name === "AbortError") {

@@ -82,6 +82,19 @@ export async function deleteS3Object(s3Key: string): Promise<void> {
   await s3Client.send(command);
 }
 
+export async function generateUploadUrl(s3Key: string, contentType: string): Promise<string | null> {
+  if (hasSupabaseStorageConfig()) {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.storage.from(SUPABASE_BUCKET).createSignedUploadUrl(s3Key);
+    if (error) throw new Error(`Supabase signed URL failed: ${error.message}`);
+    return data.signedUrl;
+  }
+  if (hasS3Config()) {
+    return getUploadPresignedUrl(s3Key, contentType);
+  }
+  return null;
+}
+
 export async function deleteFile(s3Key: string): Promise<void> {
   if (hasSupabaseStorageConfig()) {
     const supabase = getSupabaseClient();
