@@ -37,6 +37,18 @@ enum ConfidenceTier {
   RED
 }
 
+enum CreditMemoStatus {
+  DRAFT
+  GENERATING
+  FINALIZED
+}
+
+enum LendingDecisionType {
+  APPROVE
+  DECLINE
+  REFER_TO_COMMITTEE
+}
+
 enum NotificationChannel {
   EMAIL
   IN_APP
@@ -79,6 +91,10 @@ model User {
   lockedSpreads Spread[]      @relation("LockedBy")
   activityLogs  ActivityLog[]
   notifications Notification[]
+  generatedMemos    CreditMemo[]      @relation("MemoGeneratedBy")
+  finalizedMemos    CreditMemo[]      @relation("MemoFinalizedBy")
+  aiGeneratedDecisions LendingDecision[] @relation("DecisionAIGeneratedBy")
+  decidedDecisions     LendingDecision[] @relation("DecisionDecidedBy")
 
   @@unique([bankId, email])
   @@index([bankId])
@@ -107,6 +123,8 @@ model Deal {
   spreads           Spread[]
   activityLogs      ActivityLog[]
   notifications     Notification[]
+  creditMemo        CreditMemo?
+  lendingDecision   LendingDecision?
 
   @@index([bankId])
   @@index([bankerId])
@@ -193,6 +211,7 @@ model Spread {
   template   SpreadTemplate @relation(fields: [templateId], references: [id])
   lockedBy   User?          @relation("LockedBy", fields: [lockedByUserId], references: [id])
   spreadCells SpreadCell[]
+  creditMemos CreditMemo[]
 
   @@index([dealId])
   @@index([bankId])
@@ -222,6 +241,58 @@ model SpreadCell {
   @@unique([spreadId, cellRef])
   @@index([spreadId])
   @@index([bankId])
+}
+
+model CreditMemo {
+  id                String           @id @default(cuid())
+  dealId            String           @unique
+  bankId            String
+  spreadId          String?
+  status            CreditMemoStatus @default(DRAFT)
+  sectionsJson      Json             @default("{}")
+  generatedByUserId String?
+  generatedAt       DateTime?
+  finalizedAt       DateTime?
+  finalizedByUserId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  deal            Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  spread          Spread?          @relation(fields: [spreadId], references: [id])
+  generatedBy     User?            @relation("MemoGeneratedBy", fields: [generatedByUserId], references: [id])
+  finalizedBy     User?            @relation("MemoFinalizedBy", fields: [finalizedByUserId], references: [id])
+  lendingDecision LendingDecision?
+
+  @@index([bankId])
+  @@index([dealId])
+  @@index([spreadId])
+}
+
+model LendingDecision {
+  id                  String               @id @default(cuid())
+  dealId              String               @unique
+  bankId              String
+  memoId              String?              @unique
+  aiRecommendation    LendingDecisionType?
+  aiConfidence        Decimal?             @db.Decimal(5, 4)
+  aiRiskRating        String?
+  aiRationale         String?              @db.Text
+  aiGeneratedAt       DateTime?
+  aiGeneratedByUserId String?
+  decision            LendingDecisionType?
+  decisionNotes       String?              @db.Text
+  decidedByUserId     String?
+  decidedAt           DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  deal          Deal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  memo          CreditMemo? @relation(fields: [memoId], references: [id])
+  aiGeneratedBy User?       @relation("DecisionAIGeneratedBy", fields: [aiGeneratedByUserId], references: [id])
+  decidedBy     User?       @relation("DecisionDecidedBy", fields: [decidedByUserId], references: [id])
+
+  @@index([bankId])
+  @@index([dealId])
 }
 
 model ActivityLog {

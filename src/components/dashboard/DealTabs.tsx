@@ -11,6 +11,8 @@ import {
   Circle,
   Lock,
 } from "lucide-react";
+import { CreditMemoPanel } from "./CreditMemoPanel";
+import { LendingDecisionPanel } from "./LendingDecisionPanel";
 
 type ChecklistItem = {
   id: string;
@@ -43,6 +45,23 @@ type SpreadSummary = {
   locked: boolean;
 } | null;
 
+type CreditMemoData = {
+  id: string;
+  status: "DRAFT" | "GENERATING" | "FINALIZED";
+  sectionsJson: Record<string, unknown>;
+} | null;
+
+type LendingDecisionData = {
+  id: string;
+  aiRecommendation: "APPROVE" | "DECLINE" | "REFER_TO_COMMITTEE" | null;
+  aiConfidence: string | number | null;
+  aiRiskRating: string | null;
+  aiRationale: string | null;
+  decision: "APPROVE" | "DECLINE" | "REFER_TO_COMMITTEE" | null;
+  decisionNotes: string | null;
+  decidedAt: string | Date | null;
+} | null;
+
 type DealData = {
   id: string;
   internalName: string;
@@ -52,6 +71,10 @@ type DealData = {
   activityLogs: ActivityItem[];
   hasSpread: boolean;
   spreadSummary?: SpreadSummary;
+  stage: string;
+  userRole: string;
+  creditMemo?: CreditMemoData;
+  lendingDecision?: LendingDecisionData;
 };
 
 type Props = { deal: DealData };
@@ -93,7 +116,7 @@ const ACTION_ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 export function DealTabs({ deal }: Props) {
-  const [tab, setTab] = useState<"documents" | "spread" | "activity">("documents");
+  const [tab, setTab] = useState<"documents" | "spread" | "creditMemo" | "lendingDecision" | "activity">("documents");
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalCopied, setPortalCopied] = useState(false);
@@ -132,10 +155,14 @@ export function DealTabs({ deal }: Props) {
 
   const docCount = deal.documentChecklist.length;
   const redCells = deal.spreadSummary?.red ?? 0;
+  const hasLockedSpread = Boolean(deal.spreadSummary?.locked);
+  const canFinalizeMemo = ["ADMIN", "CREDIT_OFFICER"].includes(deal.userRole);
 
   const tabs = [
     { key: "documents" as const, label: "Documents", badge: docCount > 0 ? String(docCount) : null },
     { key: "spread" as const, label: "Spread", badge: redCells > 0 ? `${redCells} flag${redCells > 1 ? "s" : ""}` : null },
+    { key: "creditMemo" as const, label: "Credit Memo", badge: deal.creditMemo?.status === "FINALIZED" ? "final" : null },
+    { key: "lendingDecision" as const, label: "Lending Decision", badge: deal.lendingDecision?.decision ? "decided" : null },
     { key: "activity" as const, label: "Activity", badge: null },
   ];
 
@@ -456,6 +483,31 @@ export function DealTabs({ deal }: Props) {
                 </div>
               )}
             </div>
+          )}
+
+          {tab === "creditMemo" && (
+            <CreditMemoPanel
+              dealId={deal.id}
+              initialMemo={
+                deal.creditMemo
+                  ? {
+                      id: deal.creditMemo.id,
+                      status: deal.creditMemo.status,
+                      sectionsJson: deal.creditMemo.sectionsJson as never,
+                    }
+                  : null
+              }
+              canFinalize={canFinalizeMemo}
+              canGenerate={hasLockedSpread}
+            />
+          )}
+
+          {tab === "lendingDecision" && (
+            <LendingDecisionPanel
+              dealId={deal.id}
+              initialDecision={deal.lendingDecision ?? null}
+              canGenerateAdvisory={hasLockedSpread}
+            />
           )}
 
           {tab === "activity" && (

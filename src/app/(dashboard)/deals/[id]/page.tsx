@@ -73,6 +73,8 @@ export default async function DealDetailPage({ params }: PageProps) {
           spreadCells: { select: { confidenceTier: true } },
         },
       },
+      creditMemo: true,
+      lendingDecision: true,
     },
   });
 
@@ -216,6 +218,27 @@ export default async function DealDetailPage({ params }: PageProps) {
           })),
           hasSpread,
           spreadSummary,
+          stage: deal.stage,
+          userRole: session.user.role,
+          creditMemo: deal.creditMemo
+            ? {
+                id: deal.creditMemo.id,
+                status: deal.creditMemo.status,
+                sectionsJson: deal.creditMemo.sectionsJson as Record<string, unknown>,
+              }
+            : null,
+          lendingDecision: deal.lendingDecision
+            ? {
+                id: deal.lendingDecision.id,
+                aiRecommendation: deal.lendingDecision.aiRecommendation,
+                aiConfidence: deal.lendingDecision.aiConfidence?.toString() ?? null,
+                aiRiskRating: deal.lendingDecision.aiRiskRating,
+                aiRationale: deal.lendingDecision.aiRationale,
+                decision: deal.lendingDecision.decision,
+                decisionNotes: deal.lendingDecision.decisionNotes,
+                decidedAt: deal.lendingDecision.decidedAt,
+              }
+            : null,
         }}
       />
     </div>
