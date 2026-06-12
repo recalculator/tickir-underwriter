@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { apiLimiter } from "@/lib/rate-limit";
 import { sanitizeString } from "@/lib/sanitize";
 import { generateLendingAdvisory, recordLendingDecision } from "@/lib/lendingDecision";
+import { errorStatus } from "@/lib/api-errors";
 import type { ApiResponse } from "@/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest, { params }: RouteContext): Promise<
   } catch (err) {
     return NextResponse.json<ApiResponse<null>>(
       { success: false, data: null, error: err instanceof Error ? err.message : "Advisory generation failed" },
-      { status: 500 }
+      { status: errorStatus(err) }
     );
   }
 }
@@ -124,7 +125,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
   } catch (err) {
     return NextResponse.json<ApiResponse<null>>(
       { success: false, data: null, error: err instanceof Error ? err.message : "Failed to record decision" },
-      { status: 500 }
+      { status: errorStatus(err) }
     );
   }
 }

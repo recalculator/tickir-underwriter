@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { runSpreading } from "@/lib/spreading";
+import { errorStatus } from "@/lib/api-errors";
 import type { ApiResponse } from "@/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest, { params }: RouteContext): Promise<
   } catch (err) {
     return NextResponse.json<ApiResponse<null>>(
       { success: false, data: null, error: err instanceof Error ? err.message : "Spreading failed" },
-      { status: 500 }
+      { status: errorStatus(err) }
     );
   }
 }

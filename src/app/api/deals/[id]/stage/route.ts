@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DEAL_STAGES } from "@/lib/constants";
-import type { ApiResponse } from "@/types";
+import { getStageBlockReason } from "@/lib/stage-gating";
+import type { ApiResponse, DealStageType } from "@/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,7 +27,15 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
   }
 
   const { id } = await params;
-  const deal = await prisma.deal.findFirst({ where: { id, bankId: session.user.bankId } });
+  const deal = await prisma.deal.findFirst({
+    where: { id, bankId: session.user.bankId },
+    include: {
+      documentChecklist: true,
+      spreads: { where: { lockedAt: { not: null } }, take: 1 },
+      lendingDecision: true,
+      creditMemo: true,
+    },
+  });
 
   if (!deal) {
     return NextResponse.json<ApiResponse<null>>(
@@ -40,6 +49,23 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
     return NextResponse.json<ApiResponse<null>>(
       { success: false, data: null, error: "Deal is already at a terminal stage" },
       { status: 400 }
+    );
+  }
+
+  const requiredDocs = deal.documentChecklist.filter((d) => d.required);
+  const blockReason = getStageBlockReason({
+    stage: deal.stage as DealStageType,
+    allRequiredDocsValidated: requiredDocs.length > 0 && requiredDocs.every((d) => d.validated),
+    hasLockedSpread: deal.spreads.length > 0,
+    hasAdvisory: Boolean(deal.lendingDecision?.aiGeneratedAt),
+    hasMemo: Boolean(deal.creditMemo),
+    memoFinalized: deal.creditMemo?.status === "FINALIZED",
+  });
+
+  if (blockReason) {
+    return NextResponse.json<ApiResponse<null>>(
+      { success: false, data: null, error: blockReason },
+      { status: 409 }
     );
   }
 

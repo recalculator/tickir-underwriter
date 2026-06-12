@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
+import { hasAnthropicKey, aiDisabledMessage } from "@/lib/ai-config";
 
 type ConsistencyIssue = {
   field: string;
@@ -25,13 +26,21 @@ export async function runConsistencyCheck(dealId: string): Promise<void> {
     return;
   }
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) {
-    console.warn(`[consistency-check] Skipping for deal ${dealId}: no API key`);
+  const deal = documents[0].deal;
+
+  if (!hasAnthropicKey()) {
+    await prisma.activityLog.create({
+      data: {
+        dealId,
+        bankId: deal.bankId,
+        userId: deal.bankerId,
+        actionType: "CONSISTENCY_CHECK_SKIPPED",
+        metadataJson: { reason: aiDisabledMessage("Review uploaded documents manually for inconsistencies.") },
+      },
+    });
     return;
   }
 
-  const deal = documents[0].deal;
   const snippets = documents
     .map((d, i) => `Document ${i + 1} (${d.docType}): ${d.aiNotes ?? "(no extracted text)"}`)
     .join("\n\n");

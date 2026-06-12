@@ -3,6 +3,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
 import { downloadFile, hasS3Config } from "@/lib/s3";
+import { hasAnthropicKey, aiDisabledMessage } from "@/lib/ai-config";
 
 type CellDef = {
   cell_type?: string;
@@ -37,10 +38,6 @@ function confidenceTier(confidence: number): "GREEN" | "YELLOW" | "RED" {
   if (confidence >= 0.9) return "GREEN";
   if (confidence >= 0.7) return "YELLOW";
   return "RED";
-}
-
-function hasAnthropicKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
 function isImageFilename(filename: string): boolean {
@@ -201,14 +198,24 @@ Return ONLY this JSON (no other text):
 }
 
 export async function runSpreading(dealId: string, templateId: string): Promise<string> {
-  const [template, documents, deal] = await Promise.all([
+  const [template, documents, deal, existingLockedSpread, requiredChecklist] = await Promise.all([
     prisma.spreadTemplate.findUnique({ where: { id: templateId } }),
     prisma.document.findMany({ where: { dealId, status: "VALID" } }),
     prisma.deal.findUnique({ where: { id: dealId } }),
+    prisma.spread.findFirst({ where: { dealId, lockedAt: { not: null } } }),
+    prisma.documentChecklist.findMany({ where: { dealId, required: true } }),
   ]);
 
   if (!template) throw new Error(`Template ${templateId} not found`);
   if (!deal) throw new Error(`Deal ${dealId} not found`);
+
+  if (existingLockedSpread) {
+    throw new Error("This deal's spread is already locked. A locked spread cannot be re-run.");
+  }
+
+  if (requiredChecklist.length === 0 || !requiredChecklist.every((item) => item.validated)) {
+    throw new Error("All required documents must be validated before running AI spreading.");
+  }
 
   const spread = await prisma.spread.create({
     data: { dealId, bankId: deal.bankId, templateId },
@@ -228,12 +235,12 @@ export async function runSpreading(dealId: string, templateId: string): Promise<
             bankId: deal.bankId,
             cellRef,
             value: null,
-            confidence: 0.95,
-            confidenceTier: "GREEN",
+            confidence: null,
+            confidenceTier: "RED",
             sourceDoc: cell.source_doc_type ?? null,
             sourcePage: null,
             formulaExplanation: null,
-            flagReason: null,
+            flagReason: aiDisabledMessage("Enter this value manually from the source document."),
           },
         })
       )

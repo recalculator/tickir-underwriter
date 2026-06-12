@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
 import { LOAN_TYPE_LABELS } from "@/lib/constants";
+import { hasAnthropicKey, aiDisabledMessage } from "@/lib/ai-config";
 
 export type AdvisoryRiskRating = "LOW" | "MODERATE" | "ELEVATED" | "HIGH";
 export type AdvisoryRecommendation = "APPROVE" | "DECLINE" | "REFER_TO_COMMITTEE";
@@ -32,10 +33,6 @@ type AdvisoryContext = {
   internalName: string;
   cells: SpreadCellSummary[];
 };
-
-function hasAnthropicKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
 
 function formatCurrency(value: string): string {
   const num = Number(value);
@@ -124,8 +121,7 @@ function fallbackAdvisory(): AdvisoryResult {
     recommendation: "REFER_TO_COMMITTEE",
     confidence: 0,
     risk_rating: "MODERATE",
-    rationale:
-      "AI advisory is unavailable — no ANTHROPIC_API_KEY is configured for this bank. Please review the spread data manually and record your decision below.",
+    rationale: aiDisabledMessage("Please review the spread data manually and record your decision below."),
   };
 }
 
@@ -195,34 +191,48 @@ export async function recordLendingDecision(
   notes: string,
   userId: string
 ): Promise<void> {
-  const deal = await prisma.deal.findUnique({ where: { id: dealId }, select: { bankId: true } });
+  const deal = await prisma.deal.findUnique({ where: { id: dealId }, select: { bankId: true, stage: true } });
   if (!deal) throw new Error(`Deal ${dealId} not found`);
 
-  await prisma.lendingDecision.upsert({
-    where: { dealId },
-    create: {
-      dealId,
-      bankId: deal.bankId,
-      decision,
-      decisionNotes: notes,
-      decidedByUserId: userId,
-      decidedAt: new Date(),
-    },
-    update: {
-      decision,
-      decisionNotes: notes,
-      decidedByUserId: userId,
-      decidedAt: new Date(),
-    },
-  });
+  const existing = await prisma.lendingDecision.findUnique({ where: { dealId } });
+  if (!existing?.aiGeneratedAt) {
+    throw new Error("Generate the AI lending advisory before recording a decision.");
+  }
 
-  await prisma.activityLog.create({
-    data: {
-      dealId,
-      bankId: deal.bankId,
-      userId,
-      actionType: "LENDING_DECISION_RECORDED",
-      metadataJson: { decision },
-    },
+  const movesToDeclined = decision === "DECLINE" && deal.stage !== "DECLINED" && deal.stage !== "CLOSED";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.lendingDecision.update({
+      where: { dealId },
+      data: {
+        decision,
+        decisionNotes: notes,
+        decidedByUserId: userId,
+        decidedAt: new Date(),
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        dealId,
+        bankId: deal.bankId,
+        userId,
+        actionType: "LENDING_DECISION_RECORDED",
+        metadataJson: { decision },
+      },
+    });
+
+    if (movesToDeclined) {
+      await tx.deal.update({ where: { id: dealId }, data: { stage: "DECLINED" } });
+      await tx.activityLog.create({
+        data: {
+          dealId,
+          bankId: deal.bankId,
+          userId,
+          actionType: "STAGE_ADVANCED",
+          metadataJson: { from: deal.stage, to: "DECLINED" },
+        },
+      });
+    }
   });
 }

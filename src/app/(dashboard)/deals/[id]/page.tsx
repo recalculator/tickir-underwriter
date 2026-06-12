@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { StagesBadge } from "@/components/dashboard/StagesBadge";
 import { LOAN_TYPE_LABELS, DEAL_STAGES, DEAL_STAGE_LABELS } from "@/lib/constants";
 import { DealTabs } from "@/components/dashboard/DealTabs";
+import { PipelineStepper, type PipelineStep } from "@/components/dashboard/PipelineStepper";
+import { getStageBlockReason } from "@/lib/stage-gating";
 import type { DealStageType } from "@/types";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -33,22 +35,6 @@ function getDaysInStage(updatedAt: Date): number {
   );
 }
 
-type BlockReason = string | null;
-
-function getBlockReason(
-  currentStage: string,
-  allRequiredDocsValidated: boolean,
-  hasLockedSpread: boolean
-): BlockReason {
-  if (currentStage === "DOCUMENT_COLLECTION" && !allRequiredDocsValidated) {
-    return "All required documents must be validated before advancing to Spreading.";
-  }
-  if (currentStage === "SPREADING" && !hasLockedSpread) {
-    return "The spread must be locked before advancing to Credit Review.";
-  }
-  return null;
-}
-
 export default async function DealDetailPage({ params }: PageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
@@ -70,7 +56,8 @@ export default async function DealDetailPage({ params }: PageProps) {
         orderBy: { createdAt: "desc" },
         take: 1,
         include: {
-          spreadCells: { select: { confidenceTier: true } },
+          spreadCells: true,
+          template: { select: { cellsJson: true } },
         },
       },
       creditMemo: true,
@@ -95,11 +82,34 @@ export default async function DealDetailPage({ params }: PageProps) {
       }
     : null;
 
-  const allRequiredDocsValidated =
-    deal.documentChecklist.filter((d) => d.required).length > 0 &&
-    deal.documentChecklist.filter((d) => d.required).every((d) => d.validated);
+  const requiredDocs = deal.documentChecklist.filter((d) => d.required);
+  const allRequiredDocsValidated = requiredDocs.length > 0 && requiredDocs.every((d) => d.validated);
 
   const hasLockedSpread = Boolean(spread?.lockedAt);
+  const hasAdvisory = Boolean(deal.lendingDecision?.aiGeneratedAt);
+  const hasMemo = Boolean(deal.creditMemo);
+  const memoFinalized = deal.creditMemo?.status === "FINALIZED";
+
+  const spreadCellsJson = (spread?.template?.cellsJson ?? {}) as Record<string, { label?: string }>;
+  const spreadCells = (spread?.spreadCells ?? []).map((cell) => ({
+    cellRef: cell.cellRef,
+    label: spreadCellsJson[cell.cellRef]?.label ?? null,
+    value: cell.correctedValue ?? cell.value,
+    confidenceTier: cell.confidenceTier as "GREEN" | "YELLOW" | "RED",
+    flagReason: cell.flagReason,
+  }));
+
+  function stepStatus(complete: boolean, ready: boolean): PipelineStep["status"] {
+    if (complete) return "complete";
+    return ready ? "current" : "pending";
+  }
+
+  const pipelineSteps: PipelineStep[] = [
+    { key: "documents", label: "Documents", status: stepStatus(allRequiredDocsValidated, true) },
+    { key: "spread", label: "Spread", status: stepStatus(hasLockedSpread, allRequiredDocsValidated) },
+    { key: "decision", label: "Decision", status: stepStatus(hasAdvisory, hasLockedSpread) },
+    { key: "memo", label: "Memo", status: stepStatus(memoFinalized, hasAdvisory) },
+  ];
 
   const TERMINAL_STAGES = new Set(["CLOSED", "DECLINED"]);
   const isTerminal = TERMINAL_STAGES.has(deal.stage);
@@ -108,7 +118,14 @@ export default async function DealDetailPage({ params }: PageProps) {
   const nextStage = !isTerminal && stageIdx !== -1 ? (DEAL_STAGES[stageIdx + 1] ?? null) : null;
 
   const blockReason = nextStage
-    ? getBlockReason(deal.stage, allRequiredDocsValidated, hasLockedSpread)
+    ? getStageBlockReason({
+        stage: deal.stage as DealStageType,
+        allRequiredDocsValidated,
+        hasLockedSpread,
+        hasAdvisory,
+        hasMemo,
+        memoFinalized,
+      })
     : null;
 
   return (
@@ -167,6 +184,12 @@ export default async function DealDetailPage({ params }: PageProps) {
             {blockReason}
           </div>
         )}
+
+        {!isTerminal && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+            <PipelineStepper steps={pipelineSteps} />
+          </div>
+        )}
       </div>
 
       {/* Deal Details */}
@@ -218,6 +241,7 @@ export default async function DealDetailPage({ params }: PageProps) {
           })),
           hasSpread,
           spreadSummary,
+          spreadCells,
           stage: deal.stage,
           userRole: session.user.role,
           creditMemo: deal.creditMemo
@@ -239,6 +263,11 @@ export default async function DealDetailPage({ params }: PageProps) {
                 decidedAt: deal.lendingDecision.decidedAt,
               }
             : null,
+          bankerNotes: deal.bankerNotes,
+          bankerNotesUpdatedAt: deal.bankerNotesUpdatedAt,
+          hasAdvisory,
+          hasMemo,
+          memoFinalized,
         }}
       />
     </div>
@@ -291,13 +320,32 @@ function AdvanceStageButton({
         const { getServerSession: getSession } = await import("next-auth");
         const { authOptions: opts } = await import("@/lib/auth");
         const { DEAL_STAGES: stages } = await import("@/lib/constants");
+        const { getStageBlockReason: getBlockReason } = await import("@/lib/stage-gating");
         const session = await getSession(opts);
         if (!session?.user) return;
-        const deal = await db.deal.findFirst({ where: { id: dealId, bankId: session.user.bankId } });
+        const deal = await db.deal.findFirst({
+          where: { id: dealId, bankId: session.user.bankId },
+          include: {
+            documentChecklist: true,
+            spreads: { where: { lockedAt: { not: null } }, take: 1 },
+            lendingDecision: true,
+            creditMemo: true,
+          },
+        });
         if (!deal) { serverRedirect(`/deals/${dealId}`); return; }
         const idx = stages.indexOf(deal.stage as (typeof stages)[number]);
         const next = idx !== -1 ? stages[idx + 1] : null;
         if (!next) { serverRedirect(`/deals/${dealId}`); return; }
+        const requiredDocs = deal.documentChecklist.filter((d) => d.required);
+        const blocked = getBlockReason({
+          stage: deal.stage as (typeof stages)[number],
+          allRequiredDocsValidated: requiredDocs.length > 0 && requiredDocs.every((d) => d.validated),
+          hasLockedSpread: deal.spreads.length > 0,
+          hasAdvisory: Boolean(deal.lendingDecision?.aiGeneratedAt),
+          hasMemo: Boolean(deal.creditMemo),
+          memoFinalized: deal.creditMemo?.status === "FINALIZED",
+        });
+        if (blocked) { serverRedirect(`/deals/${dealId}`); return; }
         await db.$transaction([
           db.deal.update({ where: { id: dealId }, data: { stage: next } }),
           db.activityLog.create({

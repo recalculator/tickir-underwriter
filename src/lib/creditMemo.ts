@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
 import { LOAN_TYPE_LABELS } from "@/lib/constants";
+import { hasAnthropicKey, aiDisabledMessage } from "@/lib/ai-config";
 
 export const MEMO_SECTIONS = [
   "loanSummary",
@@ -41,6 +42,14 @@ type SpreadCellSummary = {
   flagReason: string | null;
 };
 
+type AdvisorySummary = {
+  recommendation: string | null;
+  riskRating: string | null;
+  rationale: string | null;
+  bankerDecision: string | null;
+  bankerDecisionNotes: string | null;
+};
+
 type MemoContext = {
   dealId: string;
   bankId: string;
@@ -50,14 +59,12 @@ type MemoContext = {
   loanAmount: string;
   internalName: string;
   cells: SpreadCellSummary[];
+  advisory: AdvisorySummary | null;
+  bankerNotes: string | null;
 };
 
-function hasAnthropicKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
-
 function fallbackContent(section: MemoSectionKey): string {
-  return `AI generation is unavailable — no ANTHROPIC_API_KEY is configured for this bank. Draft the "${MEMO_SECTION_LABELS[section]}" section manually, then save your edits.`;
+  return aiDisabledMessage(`Draft the "${MEMO_SECTION_LABELS[section]}" section manually, then save your edits.`);
 }
 
 function formatCurrency(value: string): string {
@@ -77,18 +84,36 @@ function formatCellsTable(cells: SpreadCellSummary[]): string {
     .join("\n");
 }
 
+function formatAdvisory(advisory: AdvisorySummary | null): string {
+  if (!advisory) return "(no AI lending advisory available)";
+  const lines: string[] = [];
+  if (advisory.recommendation) lines.push(`AI recommendation: ${advisory.recommendation} (risk rating: ${advisory.riskRating ?? "unknown"})`);
+  if (advisory.rationale) lines.push(`AI rationale: ${advisory.rationale}`);
+  if (advisory.bankerDecision) {
+    lines.push(`Banker decision: ${advisory.bankerDecision}${advisory.bankerDecisionNotes ? ` — ${advisory.bankerDecisionNotes}` : ""}`);
+  }
+  return lines.length > 0 ? lines.join("\n") : "(no AI lending advisory available)";
+}
+
+function formatBankerNotes(notes: string | null): string {
+  return notes && notes.trim() ? notes.trim() : "(no banker notes provided)";
+}
+
 async function buildMemoContext(dealId: string): Promise<MemoContext> {
   const deal = await prisma.deal.findUnique({ where: { id: dealId } });
   if (!deal) throw new Error(`Deal ${dealId} not found`);
 
-  const lockedSpread = await prisma.spread.findFirst({
-    where: { dealId, lockedAt: { not: null } },
-    orderBy: { lockedAt: "desc" },
-    include: {
-      spreadCells: true,
-      template: true,
-    },
-  });
+  const [lockedSpread, lendingDecision] = await Promise.all([
+    prisma.spread.findFirst({
+      where: { dealId, lockedAt: { not: null } },
+      orderBy: { lockedAt: "desc" },
+      include: {
+        spreadCells: true,
+        template: true,
+      },
+    }),
+    prisma.lendingDecision.findUnique({ where: { dealId } }),
+  ]);
 
   const cellsJson = (lockedSpread?.template.cellsJson ?? {}) as Record<string, { label?: string }>;
 
@@ -101,6 +126,16 @@ async function buildMemoContext(dealId: string): Promise<MemoContext> {
     flagReason: cell.flagReason,
   }));
 
+  const advisory: AdvisorySummary | null = lendingDecision?.aiGeneratedAt
+    ? {
+        recommendation: lendingDecision.aiRecommendation,
+        riskRating: lendingDecision.aiRiskRating,
+        rationale: lendingDecision.aiRationale,
+        bankerDecision: lendingDecision.decision,
+        bankerDecisionNotes: lendingDecision.decisionNotes,
+      }
+    : null;
+
   return {
     dealId: deal.id,
     bankId: deal.bankId,
@@ -110,6 +145,8 @@ async function buildMemoContext(dealId: string): Promise<MemoContext> {
     loanAmount: formatCurrency(deal.loanAmount.toString()),
     internalName: deal.internalName,
     cells,
+    advisory,
+    bankerNotes: deal.bankerNotes,
   };
 }
 
@@ -124,6 +161,12 @@ REQUESTED AMOUNT: ${ctx.loanAmount}
 
 SPREAD DATA (from the locked financial spread, cite specific cellRef/value/confidence when relevant):
 ${formatCellsTable(ctx.cells)}
+
+AI LENDING ADVISORY (already shown to the banker as advisory input, not a final decision):
+${formatAdvisory(ctx.advisory)}
+
+BANKER NOTES (comments the banker has recorded on this deal):
+${formatBankerNotes(ctx.bankerNotes)}
 `;
 
   const instructions: Record<MemoSectionKey, string> = {
@@ -134,11 +177,11 @@ ${formatCellsTable(ctx.cells)}
     financialAnalysis:
       "Write a financial analysis section that walks through the key figures from the spread data above. Cite specific cellRef values and explicitly call out any RED or YELLOW confidence-tier cells or flagged figures that the banker should double check. Use clear paragraph form, not just a list.",
     riskFactors:
-      "Identify 3-6 specific risk factors for this loan, grounded in the spread data and loan characteristics (e.g., low confidence figures, concentration risk, leverage, loan-to-value, industry/loan-type risk). Format as a short bulleted list, each with a one-sentence explanation.",
+      "Identify 3-6 specific risk factors for this loan, grounded in the spread data and loan characteristics (e.g., low confidence figures, concentration risk, leverage, loan-to-value, industry/loan-type risk). Take into account any risks raised in the AI lending advisory or banker notes above. Format as a short bulleted list, each with a one-sentence explanation.",
     strengths:
-      "Identify 3-6 specific strengths or mitigating factors that support this loan, grounded in the spread data and loan characteristics. Format as a short bulleted list, each with a one-sentence explanation.",
+      "Identify 3-6 specific strengths or mitigating factors that support this loan, grounded in the spread data and loan characteristics. Take into account any strengths noted in the AI lending advisory or banker notes above. Format as a short bulleted list, each with a one-sentence explanation.",
     recommendation:
-      "Write a balanced closing recommendation paragraph that weighs the strengths and risk factors above and suggests what the credit committee should focus on when making its decision. Do NOT issue a final approve/decline verdict yourself — frame this as guidance to inform the human decision-maker.",
+      "Write a balanced closing recommendation paragraph that weighs the strengths and risk factors above and suggests what the credit committee should focus on when making its decision. Reconcile the AI lending advisory's recommendation and risk rating with the banker's notes (and recorded decision, if any) — note any agreement or divergence between them. Do NOT issue a final approve/decline verdict yourself — frame this as guidance to inform the human decision-maker.",
   };
 
   return `${header}
@@ -168,6 +211,9 @@ export async function generateCreditMemo(dealId: string, userId: string): Promis
   const ctx = await buildMemoContext(dealId);
   if (!ctx.spreadId) {
     throw new Error("A locked spread is required before generating a credit memo");
+  }
+  if (!ctx.advisory) {
+    throw new Error("Generate the AI lending advisory before drafting a credit memo");
   }
 
   const memo = await prisma.creditMemo.upsert({
@@ -233,6 +279,9 @@ export async function regenerateMemoSection(
   const ctx = await buildMemoContext(dealId);
   if (!ctx.spreadId) {
     throw new Error("A locked spread is required before generating a credit memo");
+  }
+  if (!ctx.advisory) {
+    throw new Error("Generate the AI lending advisory before drafting a credit memo");
   }
 
   const memo = await prisma.creditMemo.findUnique({ where: { dealId } });

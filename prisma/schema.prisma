@@ -102,18 +102,20 @@ model User {
 }
 
 model Deal {
-  id             String    @id @default(cuid())
-  bankId         String
-  bankerId       String
-  borrowerName   String
-  borrowerEmail  String
-  borrowerPhone  String?
-  loanType       String
-  loanAmount     Decimal   @db.Decimal(15, 2)
-  internalName   String
-  stage          DealStage @default(DOCUMENT_COLLECTION)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  bankId               String
+  bankerId             String
+  borrowerName         String
+  borrowerEmail        String
+  borrowerPhone        String?
+  loanType             String
+  loanAmount           Decimal   @db.Decimal(15, 2)
+  internalName         String
+  stage                DealStage @default(DOCUMENT_COLLECTION)
+  bankerNotes          String?   @db.Text
+  bankerNotesUpdatedAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   bank              Bank                @relation(fields: [bankId], references: [id], onDelete: Cascade)
   banker            User                @relation("BankerDeals", fields: [bankerId], references: [id])

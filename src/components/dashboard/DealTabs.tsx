@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { CreditMemoPanel } from "./CreditMemoPanel";
 import { LendingDecisionPanel } from "./LendingDecisionPanel";
+import { BankerNotesPanel } from "./BankerNotesPanel";
+import { ReadyForDecisionSummary } from "./ReadyForDecisionSummary";
 
 type ChecklistItem = {
   id: string;
@@ -62,6 +64,14 @@ type LendingDecisionData = {
   decidedAt: string | Date | null;
 } | null;
 
+type SpreadCellSummary = {
+  cellRef: string;
+  label: string | null;
+  value: string | null;
+  confidenceTier: "GREEN" | "YELLOW" | "RED";
+  flagReason: string | null;
+};
+
 type DealData = {
   id: string;
   internalName: string;
@@ -71,10 +81,16 @@ type DealData = {
   activityLogs: ActivityItem[];
   hasSpread: boolean;
   spreadSummary?: SpreadSummary;
+  spreadCells?: SpreadCellSummary[];
   stage: string;
   userRole: string;
   creditMemo?: CreditMemoData;
   lendingDecision?: LendingDecisionData;
+  bankerNotes: string | null;
+  bankerNotesUpdatedAt: string | Date | null;
+  hasAdvisory: boolean;
+  hasMemo: boolean;
+  memoFinalized: boolean;
 };
 
 type Props = { deal: DealData };
@@ -116,7 +132,7 @@ const ACTION_ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 export function DealTabs({ deal }: Props) {
-  const [tab, setTab] = useState<"documents" | "spread" | "creditMemo" | "lendingDecision" | "activity">("documents");
+  const [tab, setTab] = useState<"documents" | "spread" | "creditMemo" | "lendingDecision" | "notes" | "summary" | "activity">("documents");
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalCopied, setPortalCopied] = useState(false);
@@ -157,12 +173,20 @@ export function DealTabs({ deal }: Props) {
   const redCells = deal.spreadSummary?.red ?? 0;
   const hasLockedSpread = Boolean(deal.spreadSummary?.locked);
   const canFinalizeMemo = ["ADMIN", "CREDIT_OFFICER"].includes(deal.userRole);
+  const readyForDecision = hasLockedSpread && deal.hasAdvisory && deal.hasMemo;
+  const memoBlockedReason = !hasLockedSpread
+    ? "A locked spread is required before drafting a credit memo."
+    : !deal.hasAdvisory
+      ? "Generate the AI lending advisory before drafting a credit memo."
+      : undefined;
 
   const tabs = [
     { key: "documents" as const, label: "Documents", badge: docCount > 0 ? String(docCount) : null },
     { key: "spread" as const, label: "Spread", badge: redCells > 0 ? `${redCells} flag${redCells > 1 ? "s" : ""}` : null },
-    { key: "creditMemo" as const, label: "Credit Memo", badge: deal.creditMemo?.status === "FINALIZED" ? "final" : null },
     { key: "lendingDecision" as const, label: "Lending Decision", badge: deal.lendingDecision?.decision ? "decided" : null },
+    { key: "creditMemo" as const, label: "Credit Memo", badge: deal.creditMemo?.status === "FINALIZED" ? "final" : null },
+    { key: "notes" as const, label: "Notes", badge: deal.bankerNotes ? "added" : null },
+    ...(readyForDecision ? [{ key: "summary" as const, label: "Ready for Decision", badge: null }] : []),
     { key: "activity" as const, label: "Activity", badge: null },
   ];
 
@@ -498,7 +522,8 @@ export function DealTabs({ deal }: Props) {
                   : null
               }
               canFinalize={canFinalizeMemo}
-              canGenerate={hasLockedSpread}
+              canGenerate={hasLockedSpread && deal.hasAdvisory}
+              blockedReason={memoBlockedReason}
             />
           )}
 
@@ -507,6 +532,23 @@ export function DealTabs({ deal }: Props) {
               dealId={deal.id}
               initialDecision={deal.lendingDecision ?? null}
               canGenerateAdvisory={hasLockedSpread}
+            />
+          )}
+
+          {tab === "notes" && (
+            <BankerNotesPanel
+              dealId={deal.id}
+              initialNotes={deal.bankerNotes}
+              initialUpdatedAt={deal.bankerNotesUpdatedAt}
+            />
+          )}
+
+          {tab === "summary" && readyForDecision && (
+            <ReadyForDecisionSummary
+              cells={deal.spreadCells ?? []}
+              advisory={deal.lendingDecision ?? null}
+              memoSections={(deal.creditMemo?.sectionsJson ?? {}) as never}
+              memoFinalized={deal.memoFinalized}
             />
           )}
 

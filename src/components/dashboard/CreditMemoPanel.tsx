@@ -42,9 +42,10 @@ type Props = {
   initialMemo: CreditMemo | null;
   canFinalize: boolean;
   canGenerate: boolean;
+  blockedReason?: string;
 };
 
-export function CreditMemoPanel({ dealId, initialMemo, canFinalize, canGenerate }: Props) {
+export function CreditMemoPanel({ dealId, initialMemo, canFinalize, canGenerate, blockedReason }: Props) {
   const [memo, setMemo] = useState<CreditMemo | null>(initialMemo);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +178,7 @@ export function CreditMemoPanel({ dealId, initialMemo, canFinalize, canGenerate 
           </button>
         ) : (
           <p style={{ margin: 0, fontSize: 12, color: "var(--ink-4)" }}>
-            A locked spread is required before drafting a credit memo.
+            {blockedReason ?? "A locked spread is required before drafting a credit memo."}
           </p>
         )}
         {error && <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--s-dec)" }}>{error}</p>}

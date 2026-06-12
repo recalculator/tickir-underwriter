@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiLimiter } from "@/lib/rate-limit";
-import { generateCreditMemo } from "@/lib/creditMemo";
-import { errorStatus } from "@/lib/api-errors";
+import { sanitizeString } from "@/lib/sanitize";
 import type { ApiResponse } from "@/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const notesSchema = z.object({
+  notes: z.string().max(5000, "Notes are too long"),
+});
 
 export async function GET(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
@@ -19,21 +23,26 @@ export async function GET(req: NextRequest, { params }: RouteContext): Promise<N
   }
 
   const { id } = await params;
-  const memo = await prisma.creditMemo.findFirst({
-    where: { dealId: id, deal: { bankId: session.user.bankId } },
+  const deal = await prisma.deal.findFirst({
+    where: { id, bankId: session.user.bankId },
+    select: { bankerNotes: true, bankerNotesUpdatedAt: true },
   });
 
-  if (!memo) {
+  if (!deal) {
     return NextResponse.json<ApiResponse<null>>(
-      { success: false, data: null, error: "No credit memo found" },
+      { success: false, data: null, error: "Deal not found" },
       { status: 404 }
     );
   }
 
-  return NextResponse.json({ success: true, data: memo, error: null });
+  return NextResponse.json({
+    success: true,
+    data: { bankerNotes: deal.bankerNotes, bankerNotesUpdatedAt: deal.bankerNotesUpdatedAt },
+    error: null,
+  });
 }
 
-export async function POST(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+export async function PATCH(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json<ApiResponse<null>>(
@@ -59,23 +68,31 @@ export async function POST(req: NextRequest, { params }: RouteContext): Promise<
     );
   }
 
-  const lockedSpread = await prisma.spread.findFirst({
-    where: { dealId: id, lockedAt: { not: null } },
-  });
-  if (!lockedSpread) {
+  const body = await req.json().catch(() => null);
+  const parsed = notesSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json<ApiResponse<null>>(
-      { success: false, data: null, error: "A locked spread is required before generating a credit memo" },
-      { status: 409 }
+      { success: false, data: null, error: parsed.error.issues[0]?.message ?? "Invalid input" },
+      { status: 400 }
     );
   }
 
-  try {
-    const memoId = await generateCreditMemo(id, session.user.id);
-    return NextResponse.json({ success: true, data: { memoId }, error: null }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json<ApiResponse<null>>(
-      { success: false, data: null, error: err instanceof Error ? err.message : "Credit memo generation failed" },
-      { status: errorStatus(err) }
-    );
-  }
+  const bankerNotes = sanitizeString(parsed.data.notes);
+  const updated = await prisma.deal.update({
+    where: { id },
+    data: { bankerNotes, bankerNotesUpdatedAt: new Date() },
+    select: { bankerNotes: true, bankerNotesUpdatedAt: true },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      dealId: id,
+      bankId: deal.bankId,
+      userId: session.user.id,
+      actionType: "BANKER_NOTES_UPDATED",
+      metadataJson: {},
+    },
+  });
+
+  return NextResponse.json({ success: true, data: updated, error: null });
 }
